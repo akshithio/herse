@@ -1,0 +1,35 @@
+[workspace]
+resolver = "2"
+members = ["crates/app", "crates/nb", "crates/kernel", "crates/workspace", "crates/rich", "crates/table", "crates/plot", "crates/widgets", "crates/collab", "crates/share", "crates/html", "crates/quicklook", "crates/data", "crates/cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order", "raw_value"] }
+smol = "2"
+log = "0.4"
+
+[profile.dev]
+# GPUI is unusably slow unoptimized; optimize deps, keep our crates fast to build.
+opt-level = 1
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+lto = "thin"
+codegen-units = 16
+debug = "line-tables-only"
+
+# One-line change to GPUI Kit's rich text: Markdown images taller than a line
+# keep their intrinsic size instead of being shrunk to the line (see the
+# `herse:` comment in vendor/gpui-base/src/text/inline_flow.rs).
+[patch.crates-io]
+gpui-base = { path = "vendor/gpui-base" }
+# Theme init probes the default fonts directly instead of listing every
+# installed family first (~100 ms at launch); see vendor/README.md.
+gpui-component = { path = "vendor/gpui-component" }

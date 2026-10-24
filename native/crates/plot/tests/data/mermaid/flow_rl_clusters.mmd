@@ -1,0 +1,10 @@
+flowchart RL
+    subgraph A [Frontend]
+        ui[UI] --> store[State store]
+    end
+    subgraph B [Server]
+        router[Router] --> handler[Handler]
+    end
+    store --> router
+    handler --> B2[(DB)]
+    A --> B

@@ -1,0 +1,15 @@
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Loading : fetch()
+    Loading --> Ready : 200 OK
+    Loading --> Error : timeout
+    Error --> Loading : retry
+    Ready --> Idle : reset
+    state Ready {
+        [*] --> Viewing
+        Viewing --> Editing : edit
+        Editing --> Saving : save
+        Saving --> Viewing : saved
+        Editing --> Viewing : cancel
+    }
+    Error --> [*]

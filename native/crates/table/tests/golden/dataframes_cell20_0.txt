@@ -1,0 +1,19 @@
+flavor=Pandas columns=3 index_columns=1 standalone=true header_rows=2 body_rows=11 dropped=0
+caption=None
+footer=Some("96 rows × 2 columns")
+dtypes=None
+widths=[19, 5, 8]
+ellipsis_rows=[5] ellipsis_cols=[]
+H0: <_"" H I | >t"temp" H | >t"humidity" H
+H1: <t"timestamp" H I | >_"" H | >_"" H
+B0: <t"2024-01-01 00:00:00" H I | >n"15.51" | >n"63"
+B1: <t"2024-01-01 01:00:00" H I | >n"16.61" | >n"45"
+B2: <t"2024-01-01 02:00:00" H I | >n"19.30" | >n"38"
+B3: <t"2024-01-01 03:00:00" H I | >n"20.54" | >n"40"
+B4: <t"2024-01-01 04:00:00" H I | >n"22.03" | >n"62"
+B5: <e"..." H I | =e"..." | =e"..."
+B6: <t"2024-01-04 19:00:00" H I | >n"7.66" | >n"57"
+B7: <t"2024-01-04 20:00:00" H I | >n"8.47" | >n"42"
+B8: <t"2024-01-04 21:00:00" H I | >n"8.70" | >n"88"
+B9: <t"2024-01-04 22:00:00" H I | >n"11.52" | >n"45"
+B10: <t"2024-01-04 23:00:00" H I | >n"12.66" | >n"67"

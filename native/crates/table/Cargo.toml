@@ -1,0 +1,23 @@
+[package]
+name = "herse-table"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "DataFrame-style HTML tables (pandas, Styler, polars, R, Julia) -> a structured grid model for native drawing"
+
+[dependencies]
+memchr = "2.7"
+
+[dev-dependencies]
+# Golden tests read the fixture notebooks.
+serde_json.workspace = true
+# Thread CPU time in examples/bench.rs (wall time is noisy on a busy machine).
+libc = "0.2"
+
+[[example]]
+name = "bench"
+path = "examples/bench.rs"
+
+[[example]]
+name = "dump"
+path = "examples/dump.rs"

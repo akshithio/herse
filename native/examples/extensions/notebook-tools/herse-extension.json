@@ -1,0 +1,16 @@
+{
+  "id": "notebook-tools",
+  "name": "Notebook Tools",
+  "version": "0.1.0",
+  "description": "An example: counts words, writes a table of contents, draws a bar chart type, and says when a notebook is saved.",
+  "api": 1,
+  "run": ["python3", "main.py"],
+  "commands": [
+    { "id": "word-count", "title": "Count Words" },
+    { "id": "toc", "title": "Insert Table of Contents" }
+  ],
+  "renderers": [
+    { "mime": "application/vnd.herse.bars+json", "title": "Bar chart" }
+  ],
+  "events": ["notebook.saved"]
+}

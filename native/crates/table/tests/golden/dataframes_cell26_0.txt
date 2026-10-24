@@ -1,0 +1,11 @@
+flavor=PandasStyler columns=3 index_columns=0 standalone=true header_rows=1 body_rows=4 dropped=0
+caption=None
+footer=None
+dtypes=None
+widths=[5, 8, 5]
+ellipsis_rows=[] ellipsis_cols=[]
+H0: <t"item" H | >t"share" H | >t"delta" H
+B0: <t"alpha" | >n"0.120000" bar0.000-0.120#60a5fa | >n"-3" fg#dc143c bold bar0.000-0.200#fca5a5
+B1: <t"beta" | >n"0.550000" bar0.000-0.550#60a5fa | >n"5" bar0.200-0.533#86efac
+B2: <t"gamma" | >n"0.900000" bar0.000-0.900#60a5fa | >n"0"
+B3: <t"delta" | >n"0.330000" bar0.000-0.330#60a5fa | >n"12" bar0.200-1.000#86efac

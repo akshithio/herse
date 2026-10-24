@@ -1,0 +1,52 @@
+[package]
+name = "herse"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+gpui-kit = { version = "=0.7.3", features = ["tree-sitter-python", "tree-sitter-markdown", "tree-sitter-markdown-inline", "tree-sitter-bash", "tree-sitter-rust", "tree-sitter-javascript"] }
+herse-nb = { path = "../nb" }
+herse-kernel = { path = "../kernel" }
+herse-rich = { path = "../rich" }
+herse-workspace = { path = "../workspace" }
+herse-table = { path = "../table" }
+herse-data = { path = "../data" }
+herse-widgets = { path = "../widgets" }
+herse-plot = { path = "../plot" }
+herse-share = { path = "../share" }
+herse-html = { path = "../html" }
+herse-collab = { path = "../collab", features = ["session"] }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+base64 = "0.22"
+imagesize = "0.13"
+tree-sitter = "0.26"
+nucleo-matcher = "0.3"
+memchr = "2"
+lsp-types = "0.97"
+futures = "0.3"
+ureq = "2"
+similar = "2"
+sha2 = "0.10"
+smol.workspace = true
+mimalloc = { version = "0.1", default-features = false, optional = true }
+libc = { version = "0.2", optional = true }
+image = { version = "0.25", optional = true, default-features = false, features = ["png"] }
+# Feature-unified with the GPUI that gpui-kit pins; only turns on its test-support (headless Metal capture).
+gpui-test = { package = "gpui-pre", version = "=0.3.9", optional = true, features = ["test-support"] }
+gpui-platform-test = { package = "gpui-pre-platform", version = "=0.3.9", optional = true, features = ["test-support"] }
+
+[features]
+default = ["mimalloc"]
+snapshot = ["dep:image", "dep:gpui-test", "dep:gpui-platform-test", "dep:libc"]
+
+[[bin]]
+name = "herse"
+path = "src/main.rs"
+
+[[bin]]
+name = "herse-snap"
+path = "src/bin/snap.rs"
+required-features = ["snapshot"]

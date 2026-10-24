@@ -1,0 +1,16 @@
+stateDiagram-v2
+    direction LR
+    state fork_state <<fork>>
+    [*] --> fork_state
+    fork_state --> Build
+    fork_state --> Test
+    state join_state <<join>>
+    Build --> join_state
+    Test --> join_state
+    join_state --> check
+    state check <<choice>>
+    check --> Deploy : green
+    check --> Fix : red
+    Fix --> [*]
+    Deploy --> [*]
+    note right of Deploy : production

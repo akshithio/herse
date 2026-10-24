@@ -1,0 +1,22 @@
+flowchart TB
+    client[Web client] --> lb[Load balancer]
+    mobile[Mobile app] --> lb
+    lb --> api1[API server 1]
+    lb --> api2[API server 2]
+    subgraph backend [Backend]
+        api1 --> cache[(Redis)]
+        api2 --> cache
+        api1 --> db[(Postgres)]
+        api2 --> db
+        api1 --> queue[[Job queue]]
+        api2 --> queue
+    end
+    queue --> worker1[Worker] & worker2[Worker]
+    worker1 --> db
+    worker2 --> db
+    worker1 --> s3[(Object store)]
+    subgraph observability [Observability]
+        metrics[Metrics] --> alerts[Alerting]
+    end
+    api1 -.-> metrics
+    worker2 -.-> metrics

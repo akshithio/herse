@@ -1,0 +1,14 @@
+flavor=Pandas columns=2 index_columns=1 standalone=true header_rows=2 body_rows=6 dropped=0
+caption=None
+footer=None
+dtypes=None
+widths=[25, 1]
+ellipsis_rows=[] ellipsis_cols=[]
+H0: <_"" H I | >t"v" H
+H1: <t"local time" H I | >_"" H
+B0: <t"2024-03-09 12:00:00-05:00" H I | >n"0"
+B1: <t"2024-03-09 18:00:00-05:00" H I | >n"1"
+B2: <t"2024-03-10 00:00:00-05:00" H I | >n"2"
+B3: <t"2024-03-10 07:00:00-04:00" H I | >n"3"
+B4: <t"2024-03-10 13:00:00-04:00" H I | >n"4"
+B5: <t"2024-03-10 19:00:00-04:00" H I | >n"5"

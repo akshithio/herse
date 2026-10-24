@@ -1,0 +1,12 @@
+[package]
+name = "herse-html"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+herse-nb = { path = "../nb" }
+herse-rich = { path = "../rich" }
+herse-plot = { path = "../plot" }
+markdown = "1"
+serde_json.workspace = true

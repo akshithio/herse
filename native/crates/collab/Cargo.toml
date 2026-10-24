@@ -1,0 +1,48 @@
+[package]
+name = "herse-collab"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = []
+# The live-session engine (networking, crypto). Without it the crate is just
+# the shared-document model and comments.
+session = [
+    "dep:async-channel",
+    "dep:async-tungstenite",
+    "dep:chacha20poly1305",
+    "dep:getrandom",
+    "dep:hkdf",
+    "dep:if-addrs",
+    "dep:libc",
+    "dep:sha2",
+    "dep:smol",
+]
+
+[dependencies]
+herse-nb = { path = "../nb" }
+log.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid = { version = "1", features = ["v4"] }
+# `sync`: observer callbacks are Send + Sync (the doc is shared between the
+# app thread and the network thread). `small-client`: 32-bit client ids, the
+# encoding Yjs 13 (JupyterLab) and pycrdt (jupyter-collaboration) expect.
+yrs = { version = "0.28", features = ["sync", "small-client"] }
+
+async-channel = { version = "2", optional = true }
+async-tungstenite = { version = "0.35", default-features = false, features = ["handshake"], optional = true }
+chacha20poly1305 = { version = "0.11", default-features = false, features = ["alloc"], optional = true }
+getrandom = { version = "0.4", optional = true }
+hkdf = { version = "0.13", optional = true }
+if-addrs = { version = "0.15", optional = true }
+sha2 = { version = "0.11", optional = true }
+smol = { workspace = true, optional = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { version = "0.2", optional = true }
+
+[dev-dependencies]
+# Tests always exercise the engine, while plain builds stay comments-only.
+herse-collab = { path = ".", features = ["session"] }

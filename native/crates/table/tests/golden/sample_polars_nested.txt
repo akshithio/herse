@@ -1,0 +1,9 @@
+flavor=Polars columns=3 index_columns=0 standalone=true header_rows=1 body_rows=2 dropped=0
+caption=None
+footer=Some("shape: (2, 3)")
+dtypes=Some(["list[i64]", "struct[1]", "null"])
+widths=[9, 9, 4]
+ellipsis_rows=[] ellipsis_cols=[]
+H0: <t"l" H | <t"s" H | >t"dt" H
+B0: <t"[1, 2]" | <t"{1}" | >z"null"
+B1: <t"[3]" | <t"{2}" | >z"null"

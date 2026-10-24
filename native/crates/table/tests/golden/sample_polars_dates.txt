@@ -1,0 +1,9 @@
+flavor=Polars columns=3 index_columns=0 standalone=true header_rows=1 body_rows=2 dropped=0
+caption=None
+footer=Some("shape: (2, 3)")
+dtypes=Some(["date", "datetime[μs]", "str"])
+widths=[10, 19, 7]
+ellipsis_rows=[] ellipsis_cols=[]
+H0: <t"d" H | <t"t" H | <t"s" H
+B0: <t"2024-01-01" | <t"2024-01-01 12:00:00" | <t"\"a<b\""
+B1: <t"2024-02-01" | <z"null" | <t"\"&amp;\""

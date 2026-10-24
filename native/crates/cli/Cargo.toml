@@ -1,0 +1,21 @@
+[package]
+name = "herse-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "The herse command: open notebooks and folders in Herse, or read, run and export notebooks from the terminal."
+
+# Installed as `herse` (Herse ▸ Install Command Line Tool); `herse-cli` here
+# so it doesn't collide with the app's own binary in target/.
+[[bin]]
+name = "herse-cli"
+path = "src/main.rs"
+
+[dependencies]
+herse-nb = { path = "../nb" }
+herse-html = { path = "../html" }
+herse-kernel = { path = "../kernel" }
+herse-data = { path = "../data" }
+herse-rich = { path = "../rich" }
+serde_json.workspace = true
+libc = "0.2"

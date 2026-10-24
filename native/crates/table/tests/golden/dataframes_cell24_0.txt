@@ -1,0 +1,17 @@
+flavor=PandasStyler columns=7 index_columns=1 standalone=true header_rows=1 body_rows=10 dropped=0
+caption=Some("background_gradient (RdYlGn)")
+footer=None
+dtypes=None
+widths=[1, 5, 5, 5, 5, 5, 5]
+ellipsis_rows=[] ellipsis_cols=[]
+H0: <_"" H I | >t"A" H | >t"B" H | >t"C" H | >t"D" H | >t"E" H | >t"F" H
+B0: <n"0" H I | >n"-1.58" bg#db382b fg#f1f1f1 | >n"-0.97" bg#f98e52 fg#f1f1f1 | >n"-1.61" bg#d93429 fg#f1f1f1 | >n"1.07" bg#a2d76a fg#000000 | >n"0.61" bg#d7ee8a fg#000000 | >n"0.70" bg#cdea83 fg#000000
+B1: <n"1" H I | >n"-0.88" bg#fa9b58 fg#000000 | >n"-1.17" bg#f57245 fg#f1f1f1 | >n"0.08" bg#fffbb8 fg#000000 | >n"0.10" bg#fffcba fg#000000 | >n"-0.85" bg#fba05b fg#000000 | >n"0.14" bg#fffebe fg#000000
+B2: <n"2" H I | >n"0.65" bg#d3ec87 fg#000000 | >n"0.23" bg#f8fcb6 fg#000000 | >n"-1.04" bg#f7844e fg#f1f1f1 | >z"-" bg#000000 fg#f1f1f1 | >n"-0.26" bg#fee491 fg#000000 | >n"0.16" bg#fdfebc fg#000000
+B3: <n"3" H I | >n"-0.26" bg#fee491 fg#000000 | >n"-0.43" bg#fed27f fg#000000 | >n"-0.69" bg#fdb567 fg#000000 | >n"0.72" bg#cbe982 fg#000000 | >n"-0.05" bg#fff1a8 fg#000000 | >n"0.12" bg#fffdbc fg#000000
+B4: <n"4" H I | >n"-0.97" bg#f98e52 fg#f1f1f1 | >n"-0.62" bg#fdbd6d fg#000000 | >n"0.16" bg#fdfebc fg#000000 | >n"-1.00" bg#f88950 fg#f1f1f1 | >n"-1.26" bg#f16640 fg#f1f1f1 | >n"-0.33" bg#fede89 fg#000000
+B5: <n"5" H I | >n"1.20" bg#8ecf67 fg#000000 | >n"0.19" bg#fbfdba fg#000000 | >n"1.46" bg#69be63 fg#f1f1f1 | >n"-0.13" bg#feec9f fg#000000 | >n"-0.31" bg#fee08b fg#000000 | >n"-1.39" bg#e75337 fg#f1f1f1
+B6: <n"6" H I | >n"-0.58" bg#fdc372 fg#000000 | >n"1.44" bg#6ec064 fg#000000 | >n"0.33" bg#eff8aa fg#000000 | >n"0.73" bg#c9e881 fg#000000 | >n"0.70" bg#cbe982 fg#000000 | >n"-0.01" bg#fff5ae fg#000000
+B7: <n"7" H I | >n"-0.20" bg#fee797 fg#000000 | >n"0.12" bg#fffdbc fg#000000 | >n"0.67" bg#cfeb85 fg#000000 | >n"0.46" bg#e5f49b fg#000000 | >n"0.49" bg#e2f397 fg#000000 | >n"0.15" bg#feffbe fg#000000
+B8: <n"8" H I | >n"-0.77" bg#fcaa5f fg#000000 | >n"-0.26" bg#fee28f fg#000000 | >n"-0.94" bg#f99355 fg#000000 | >n"1.00" bg#a9da6c fg#000000 | >n"-2.10" bg#a50026 fg#f1f1f1 | >n"-0.22" bg#fee695 fg#000000
+B9: <n"9" H I | >n"2.39" bg#006837 fg#f1f1f1 | >n"-0.34" bg#fedc88 fg#000000 | >n"-1.14" bg#f57748 fg#f1f1f1 | >n"-0.02" bg#fff3ac fg#000000 | >n"1.29" bg#82c966 fg#000000 | >n"-0.16" bg#feea9b fg#000000

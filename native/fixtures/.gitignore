@@ -1,0 +1,6 @@
+# Big benchmark set: regenerate with `python3 generate.py --big`
+big/
+__pycache__/
+*.pyc
+.DS_Store
+# NOTE: .ipynb_checkpoints/ directories under workspace/ are intentional fixtures, so they are NOT ignored here.

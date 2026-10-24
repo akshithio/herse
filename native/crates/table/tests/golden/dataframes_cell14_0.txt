@@ -1,0 +1,11 @@
+flavor=Pandas columns=5 index_columns=1 standalone=true header_rows=3 body_rows=2 dropped=0
+caption=None
+footer=None
+dtypes=None
+widths=[7, 4, 3, 2, 5]
+ellipsis_rows=[] ellipsis_cols=[]
+H0: <t"section" H I | <t"metrics" cs2 H | ^0,1 H | <t"meta" cs2 H | ^0,3 H
+H1: <t"stat" H I | >t"mean" H | >t"std" H | >t"n" H | <t"label" H
+H2: <t"run" H I | >_"" H | >_"" H | >_"" H | <_"" H
+B0: <t"first" H I | >n"1.5" | >n"0.2" | >n"10" | <t"a"
+B1: <t"second" H I | >n"2.5" | >n"0.4" | >n"20" | <t"b"

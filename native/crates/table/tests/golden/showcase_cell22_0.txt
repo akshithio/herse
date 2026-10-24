@@ -1,0 +1,15 @@
+flavor=PandasStyler columns=6 index_columns=1 standalone=true header_rows=1 body_rows=8 dropped=0
+caption=Some("Styled DataFrame (background_gradient + highlight_max)")
+footer=None
+dtypes=None
+widths=[1, 2, 8, 5, 6, 5]
+ellipsis_rows=[] ellipsis_cols=[]
+H0: <_"" H I | >t"id" H | <t"name" H | >t"score" H | <t"passed" H | >t"ratio" H
+B0: <n"0" H I | >n"1" | <t"Ada" | >n"73.7" bg#6ece58 fg#000000 | <b"False" | >n"55.5%" bg#1f9a8a fg#f1f1f1
+B1: <n"1" H I | >n"2" | <t"Grace" | >n"57.5" bg#33638d fg#f1f1f1 | <b"True" | >n"6.4%" bg#440154 fg#f1f1f1
+B2: <n"2" H I | >n"3" | <t"Linus" | >n"79.0" bg#d5e21a fg#000000 | <b"True" | >n"82.8%" bg#95d840 fg#000000
+B3: <n"3" H I | >n"4" | <t"Margaret" | >n"81.3" bg#ffd700 fg#000000 | <b"True" | >n"63.2%" bg#28ae80 fg#f1f1f1
+B4: <n"4" H I | >n"5" | <t"Dennis" | >n"46.6" bg#440154 fg#f1f1f1 | <b"True" | >n"75.8%" bg#65cb5e fg#000000
+B5: <n"5" H I | >n"6" | <t"Barbara" | >n"54.4" bg#3e4a89 fg#f1f1f1 | <b"True" | >n"35.5%" bg#32658e fg#f1f1f1
+B6: <n"6" H I | >n"7" | <t"Ken" | >n"71.5" bg#4cc26c fg#000000 | <b"True" | >n"97.1%" bg#fde725 fg#000000
+B7: <n"7" H I | >n"8" | <t"Radia" | >n"66.2" bg#1fa088 fg#f1f1f1 | <b"False" | >n"89.3%" bg#c8e020 fg#000000

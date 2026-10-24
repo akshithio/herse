@@ -1,0 +1,10 @@
+flavor=Polars columns=1 index_columns=0 standalone=true header_rows=1 body_rows=3 dropped=0
+caption=None
+footer=Some("shape: (3,)")
+dtypes=Some(["f64"])
+widths=[4]
+ellipsis_rows=[] ellipsis_cols=[]
+H0: >t"vals" H
+B0: >n"1.0"
+B1: >n"2.5"
+B2: >z"null"

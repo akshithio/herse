@@ -1,0 +1,15 @@
+sequenceDiagram
+    title Checkout
+    box Client side
+    participant B as Browser
+    end
+    box rgb(240,240,255) Services
+    participant C as Cart
+    participant P as Payments
+    end
+    B->>C: Add item
+    C->>P: Authorize card
+    P--xC: Declined
+    break when the card is declined
+        C-->>B: Show error
+    end

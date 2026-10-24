@@ -1,0 +1,17 @@
+flavor=PandasStyler columns=7 index_columns=1 standalone=true header_rows=1 body_rows=10 dropped=0
+caption=Some("highlight_max / min / null + table styles")
+footer=None
+dtypes=None
+widths=[1, 4, 4, 4, 4, 4, 4]
+ellipsis_rows=[] ellipsis_cols=[]
+H0: =_"" H I bg#1e293b fg#ffffff | =t"A" H bg#1e293b fg#ffffff | =t"B" H bg#1e293b fg#ffffff | =t"C" H bg#1e293b fg#ffffff | =t"D" H bg#1e293b fg#ffffff | =t"E" H bg#1e293b fg#ffffff | =t"F" H bg#1e293b fg#ffffff
+B0: =n"0" H I bg#1e293b fg#ffffff | >n"-1.6" bg#fecaca | >n"-1.0" | >n"-1.6" bg#fecaca | >n"1.1" bg#a7f3d0 | >n"0.6" | >n"0.7" bg#a7f3d0
+B1: =n"1" H I bg#1e293b fg#ffffff | >n"-0.9" | >n"-1.2" bg#fecaca | >n"0.1" | >n"0.1" | >n"-0.9" | >n"0.1"
+B2: =n"2" H I bg#1e293b fg#ffffff | >n"0.6" | >n"0.2" | >n"-1.0" | >z"nan" bg#fde68a | >n"-0.3" | >n"0.2"
+B3: =n"3" H I bg#1e293b fg#ffffff | >n"-0.3" | >n"-0.4" | >n"-0.7" | >n"0.7" | >n"-0.1" | >n"0.1"
+B4: =n"4" H I bg#1e293b fg#ffffff | >n"-1.0" | >n"-0.6" | >n"0.2" | >n"-1.0" bg#fecaca | >n"-1.3" | >n"-0.3"
+B5: =n"5" H I bg#1e293b fg#ffffff | >n"1.2" | >n"0.2" | >n"1.5" bg#a7f3d0 | >n"-0.1" | >n"-0.3" | >n"-1.4" bg#fecaca
+B6: =n"6" H I bg#1e293b fg#ffffff | >n"-0.6" | >n"1.4" bg#a7f3d0 | >n"0.3" | >n"0.7" | >n"0.7" | >n"-0.0"
+B7: =n"7" H I bg#1e293b fg#ffffff | >n"-0.2" | >n"0.1" | >n"0.7" | >n"0.5" | >n"0.5" | >n"0.2"
+B8: =n"8" H I bg#1e293b fg#ffffff | >n"-0.8" | >n"-0.3" | >n"-0.9" | >n"1.0" | >n"-2.1" bg#fecaca | >n"-0.2"
+B9: =n"9" H I bg#1e293b fg#ffffff | >n"2.4" bg#a7f3d0 | >n"-0.3" | >n"-1.1" | >n"-0.0" | >n"1.3" bg#a7f3d0 | >n"-0.2"

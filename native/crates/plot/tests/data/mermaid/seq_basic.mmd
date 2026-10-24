@@ -1,0 +1,21 @@
+sequenceDiagram
+    Alice->>John: Hello John, how are you?
+    activate John
+    John-->>Alice: Great!
+    deactivate John
+    Alice-)John: See you later!
+    Note left of Alice: Alice thinks
+    John-xAlice: Bye
+    Alice->John: (no arrow)
+    rect rgb(191, 223, 255)
+    par Alice to Bob
+        Alice->>Bob: Hello guys!
+    and Alice to John
+        Alice->>John: Hello guys!
+    end
+    end
+    critical Establish a connection
+        Bob->>John: connect
+    option Network timeout
+        Bob->>Bob: Log error
+    end

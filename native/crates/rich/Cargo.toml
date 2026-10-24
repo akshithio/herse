@@ -1,0 +1,26 @@
+[package]
+name = "herse-rich"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "ANSI -> styled spans, Jupyter \\r / \\b stream semantics, LaTeX math -> SVG"
+
+[dependencies]
+memchr = "2.7"
+# Glyph outlines + OpenType tables for the vendored TeX math engine
+# (src/math/tex). 0.44 is the skrifa the GPUI app already links.
+skrifa = "0.44"
+
+[dev-dependencies]
+# Only the math gallery example rasterizes SVG -> PNG; same resvg as gpui.
+resvg = "0.46"
+# Thread CPU time in examples/bench.rs (wall time is noisy on a busy machine).
+libc = "0.2"
+
+[[example]]
+name = "math_gallery"
+path = "examples/math_gallery.rs"
+
+[[example]]
+name = "bench"
+path = "examples/bench.rs"

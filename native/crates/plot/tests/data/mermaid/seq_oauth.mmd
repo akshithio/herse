@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant App as Web app
+    participant Auth as Auth server
+    participant API as Resource API
+    U->>App: Open dashboard
+    App->>+Auth: GET /authorize (PKCE)
+    Auth-->>U: Login page
+    U->>Auth: Credentials
+    alt credentials valid
+        Auth-->>-App: Redirect with code
+        App->>+Auth: POST /token (code, verifier)
+        Auth-->>-App: Access + refresh token
+    else invalid
+        Auth-->>U: Error, try again
+    end
+    Note over App,Auth: Tokens are stored server-side
+    loop Every request
+        App->>+API: GET /data (Bearer token)
+        API-->>-App: 200 JSON
+    end
+    opt Token expired
+        App->>Auth: Refresh token
+        Note right of Auth: Rotates refresh token
+        Auth--)App: New tokens
+    end
+    App->>App: Render charts
+    App-->>U: Dashboard

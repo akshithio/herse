@@ -1,0 +1,13 @@
+[package]
+name = "herse-quicklook"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Linked into the Quick Look extension (packaging/macos/QuickLook).
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+herse-nb = { path = "../nb" }
+herse-html = { path = "../html" }

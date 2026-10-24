@@ -1,0 +1,10 @@
+flavor=Julia columns=3 index_columns=1 standalone=true header_rows=1 body_rows=3 dropped=0
+caption=None
+footer=Some("3×2 DataFrame")
+dtypes=Some(["", "Int64", "String"])
+widths=[3, 5, 6]
+ellipsis_rows=[] ellipsis_cols=[]
+H0: >t"Row" H I bold | <t"x" H | <t"y" H
+B0: >n"1" H I bold | >n"1" | <t"a"
+B1: >n"2" H I bold | >n"2" | <t"b"
+B2: >n"3" H I bold | >n"3" | <t"c"

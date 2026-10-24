@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Herse — UI harness</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // Stubbed preload so the renderer can be inspected in a plain browser.
+      const NOTEBOOK = {
+        nbformat: 4,
+        nbformat_minor: 5,
+        metadata: {
+          kernelspec: { name: 'python3', display_name: 'Python 3 (ipykernel)', language: 'python' },
+          language_info: { name: 'python', version: '3.13.5' },
+        },
+        cells: [
+          {
+            id: 'c1',
+            cell_type: 'markdown',
+            metadata: {},
+            source: '# Sales analysis\n\nWe model revenue as $R = \\sum_{i=1}^{n} p_i q_i$ and check the fit.\n\n- loads the CSV\n- fits a line\n- plots residuals',
+          },
+          {
+            id: 'c2',
+            cell_type: 'code',
+            metadata: {},
+            execution_count: 1,
+            source: "import pandas as pd\nimport numpy as np\n\ndf = pd.DataFrame({'q': np.arange(5), 'p': [2.0, 2.5, 3.1, 3.4, 4.0]})\nprint(f'{len(df)} rows loaded')\ndf.head()",
+            outputs: [
+              { output_type: 'stream', name: 'stdout', text: '5 rows loaded\n' },
+              {
+                output_type: 'execute_result',
+                execution_count: 1,
+                metadata: {},
+                data: {
+                  'text/plain': '   q    p\n0  0  2.0\n1  1  2.5',
+                  'text/html':
+                    '<table><thead><tr><th></th><th>q</th><th>p</th></tr></thead><tbody><tr><th>0</th><td>0</td><td>2.0</td></tr><tr><th>1</th><td>1</td><td>2.5</td></tr><tr><th>2</th><td>2</td><td>3.1</td></tr></tbody></table>',
+                },
+              },
+            ],
+          },
+          {
+            id: 'c3',
+            cell_type: 'code',
+            metadata: {},
+            execution_count: 2,
+            source: "raise ValueError('boom')",
+            outputs: [
+              {
+                output_type: 'error',
+                ename: 'ValueError',
+                evalue: 'boom',
+                traceback: [
+                  '\u001b[0;31m---------------------------------------------------------------------------\u001b[0m',
+                  '\u001b[0;31mValueError\u001b[0m                                Traceback (most recent call last)',
+                  'Cell \u001b[0;32mIn[2], line 1\u001b[0m',
+                  "\u001b[0;32m----> 1\u001b[0m \u001b[38;5;28;01mraise\u001b[39;00m \u001b[38;5;167;01mValueError\u001b[39;00m(\u001b[38;5;124m'\u001b[39m\u001b[38;5;124mboom\u001b[39m\u001b[38;5;124m'\u001b[39m)",
+                  '\u001b[0;31mValueError\u001b[0m: boom',
+                ],
+              },
+            ],
+          },
+          { id: 'c4', cell_type: 'code', metadata: {}, execution_count: null, source: '', outputs: [] },
+        ],
+      }
+
+      const ENTRIES = [
+        { name: 'data', path: '/w/data', isDirectory: true, size: 0, modifiedAt: Date.now() },
+        {
+          name: 'sales.ipynb',
+          path: '/w/sales.ipynb',
+          isDirectory: false,
+          size: 4096,
+          modifiedAt: Date.now(),
+          notebook: { cellCount: 4, codeCellCount: 3, kernelDisplayName: 'Python 3', language: 'python', hasOutputs: true },
+        },
+        {
+          name: 'scratch.ipynb',
+          path: '/w/scratch.ipynb',
+          isDirectory: false,
+          size: 900,
+          modifiedAt: Date.now(),
+          notebook: { cellCount: 2, codeCellCount: 2, kernelDisplayName: 'Python 3', language: 'python', hasOutputs: false },
+        },
+        { name: 'README.md', path: '/w/README.md', isDirectory: false, size: 300, modifiedAt: Date.now() },
+      ]
+
+      // ?empty=1 simulates a first run with no folder ever opened.
+      const EMPTY = new URLSearchParams(location.search).has('empty')
+
+      const noop = () => () => {}
+      window.herse = {
+        workspace: {
+          getState: async () =>
+            EMPTY
+              ? { root: null, recentFolders: [], recentNotebooks: [] }
+              : { root: '/w', recentFolders: ['/w'], recentNotebooks: ['/w/sales.ipynb'] },
+          pickFolder: async () => '/w',
+          setRoot: async () => ({ root: '/w', recentFolders: ['/w'], recentNotebooks: [] }),
+          list: async () => ENTRIES,
+          findFiles: async () => ENTRIES.filter((e) => !e.isDirectory),
+          search: async () => [
+            { path: '/w/sales.ipynb', name: 'sales.ipynb', cellId: 'c2', cellIndex: 1, cellType: 'code', preview: 'df = pd.DataFrame({...})', lineNumber: 4 },
+          ],
+          revealInOS: async () => {},
+        },
+        notebook: {
+          open: async (path) => ({ path, notebook: structuredClone(NOTEBOOK), modifiedAt: Date.now() }),
+          // Instrumented so the harness can assert on autosave behaviour.
+          save: async (path, _nb, expectedModifiedAt) => {
+            window.__saves = (window.__saves || 0) + 1
+            window.__lastSave = { path, expectedModifiedAt, at: Date.now() }
+            if (window.__forceConflict) return { status: 'conflict', modifiedAt: Date.now() + 5000 }
+            return { status: 'saved', modifiedAt: Date.now() }
+          },
+          saveAs: async () => null,
+          create: async () => ({ path: '/w/Untitled.ipynb', notebook: structuredClone(NOTEBOOK), modifiedAt: Date.now() }),
+          pickFile: async () => null,
+        },
+        kernels: {
+          listSpecs: async () => [
+            { name: 'python3', display_name: 'Python 3 (ipykernel)', language: 'python', argv: [] },
+            { name: 'ir', display_name: 'R', language: 'R', argv: [] },
+          ],
+          start: async () => ({ id: 's1', kernelName: 'python3', displayName: 'Python 3 (ipykernel)', language: 'python', status: 'idle', cwd: '/w', pid: 1, startedAt: Date.now() }),
+          listSessions: async () => [],
+          shutdown: async () => {},
+          restart: async () => ({}),
+          interrupt: async () => {},
+          execute: async () => 'msg-1',
+          complete: async () => ({}),
+          inspect: async () => ({}),
+          sendInput: async () => {},
+        },
+        events: { onMessage: noop, onStatus: noop, onMenuCommand: noop },
+        system: { platform: 'darwin', openExternal: async () => {} },
+      }
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+    <script type="module">
+      // Open the fixture notebook so cells and outputs are on screen.
+      setTimeout(async () => {
+        if (new URLSearchParams(location.search).has('empty')) return
+        const mod = await import('/src/state/store.ts')
+        await mod.useStore.getState().openNotebook('/w/sales.ipynb')
+      }, 400)
+    </script>
+  </body>
+</html>

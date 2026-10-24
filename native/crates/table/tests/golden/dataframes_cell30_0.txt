@@ -1,0 +1,18 @@
+flavor=Pandas columns=7 index_columns=1 standalone=true header_rows=1 body_rows=11 dropped=0
+caption=None
+footer=None
+dtypes=None
+widths=[6, 11, 11, 11, 5, 4, 19]
+ellipsis_rows=[] ellipsis_cols=[]
+H0: <_"" H I | >t"id" H | >t"x" H | >t"y" H | >t"group" H | >t"flag" H | <t"ts" H
+B0: <t"count" H I | >n"1000.000000" | >n"1000.000000" | >n"1000.000000" | >n"1000" | >n"1000" | >n"1000"
+B1: <t"unique" H I | >z"NaN" | >z"NaN" | >z"NaN" | >n"5" | >n"2" | <z"NaN"
+B2: <t"top" H I | >z"NaN" | >z"NaN" | >z"NaN" | <t"B" | <b"True" | <z"NaN"
+B3: <t"freq" H I | >z"NaN" | >z"NaN" | >z"NaN" | >n"212" | >n"514" | <z"NaN"
+B4: <t"mean" H I | >n"499.500000" | >n"-0.034028" | >n"49.250000" | >z"NaN" | >z"NaN" | <t"2024-01-06 04:52:30"
+B5: <t"min" H I | >n"0.000000" | >n"-2.819600" | >n"0.000000" | >z"NaN" | >z"NaN" | <t"2024-01-01 00:00:00"
+B6: <n"25%" H I | >n"249.750000" | >n"-0.711300" | >n"25.000000" | >z"NaN" | >z"NaN" | <t"2024-01-03 14:26:15"
+B7: <n"50%" H I | >n"499.500000" | >n"-0.056100" | >n"48.000000" | >z"NaN" | >z"NaN" | <t"2024-01-06 04:52:30"
+B8: <n"75%" H I | >n"749.250000" | >n"0.634625" | >n"74.000000" | >z"NaN" | >z"NaN" | <t"2024-01-08 19:18:45"
+B9: <t"max" H I | >n"999.000000" | >n"2.828900" | >n"99.000000" | >z"NaN" | >z"NaN" | <t"2024-01-11 09:45:00"
+B10: <t"std" H I | >n"288.819436" | >n"0.993531" | >n"28.587073" | >z"NaN" | >z"NaN" | <z"NaN"

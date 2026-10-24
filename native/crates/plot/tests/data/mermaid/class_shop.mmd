@@ -1,0 +1,29 @@
+classDiagram
+    direction LR
+    class Customer {
+        +String name
+        +String email
+        +placeOrder(cart) Order
+    }
+    class Order {
+        <<entity>>
+        +int id
+        +Date created
+        +List~LineItem~ items
+        +total() Money
+    }
+    class LineItem {
+        +int quantity
+        +Money price
+    }
+    class PaymentMethod {
+        <<interface>>
+        +charge(amount)* bool
+    }
+    class Card
+    class Invoice
+    Customer "1" --> "*" Order : places
+    Order *-- "1..*" LineItem
+    Order o-- Invoice
+    PaymentMethod <|.. Card
+    Order ..> PaymentMethod : uses

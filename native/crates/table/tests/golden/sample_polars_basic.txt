@@ -1,0 +1,12 @@
+flavor=Polars columns=4 index_columns=0 standalone=true header_rows=1 body_rows=5 dropped=0
+caption=None
+footer=Some("shape: (5, 4)")
+dtypes=Some(["i64", "str", "f64", "bool"])
+widths=[4, 4, 4, 5]
+ellipsis_rows=[] ellipsis_cols=[]
+H0: >t"a" H | <t"b" H | >t"c" H | <t"d" H
+B0: >n"1" | <t"\"x\"" | >n"1.5" | <b"true"
+B1: >n"2" | <t"\"y\"" | >z"null" | <b"false"
+B2: >n"3" | <z"null" | >n"3.25" | <z"null"
+B3: >z"null" | <t"\"w\"" | >n"4.0" | <b"true"
+B4: >n"5" | <t"\"v\"" | >z"NaN" | <b"true"

@@ -1,0 +1,10 @@
+flavor=R columns=5 index_columns=1 standalone=true header_rows=1 body_rows=3 dropped=0
+caption=Some("A data.frame: 3 x 4")
+footer=None
+dtypes=Some(["", "<dbl>", "<dbl>", "<dbl>", "<dbl>"])
+widths=[13, 5, 5, 5, 5]
+ellipsis_rows=[] ellipsis_cols=[]
+H0: <_"" H I | >t"mpg" H | >t"cyl" H | >t"disp" H | >t"hp" H
+B0: <t"Mazda RX4" H I | >n"21.0" | >n"6" | >n"160" | >n"110"
+B1: <t"Mazda RX4 Wag" H I | >n"21.0" | >n"6" | >n"160" | >n"110"
+B2: <t"Datsun 710" H I | >n"22.8" | >n"4" | >n"108" | >n"93"

@@ -1,0 +1,29 @@
+[package]
+name = "herse-data"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Data files (CSV, TSV, Parquet, Arrow, JSON, Excel, SQLite) and DataFrame outputs -> one streaming, sortable, filterable frame"
+
+[dependencies]
+herse-table = { path = "../table" }
+serde_json.workspace = true
+memchr = "2.7"
+csv = "1.4"
+# Parquet and Arrow IPC through the arrow-rs readers: pure Rust, ~1 GB/s.
+parquet = { version = "60", default-features = false, features = ["arrow", "snap", "zstd", "lz4", "flate2-rust_backend"] }
+arrow-array = "60"
+arrow-schema = "60"
+arrow-cast = { version = "60", default-features = false }
+arrow-ipc = { version = "60", default-features = false, features = ["lz4", "zstd"] }
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+calamine = "0.37"
+# The system's SQLite (every Mac has one): no C build, no bytes added.
+rusqlite = { version = "0.40", features = ["column_decltype"] }
+
+[dev-dependencies]
+libc = "0.2"
+
+[[example]]
+name = "open"
+path = "examples/open.rs"

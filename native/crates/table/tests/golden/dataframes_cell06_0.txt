@@ -1,0 +1,18 @@
+flavor=Pandas columns=7 index_columns=1 standalone=true header_rows=1 body_rows=11 dropped=0
+caption=None
+footer=Some("1000 rows × 6 columns")
+dtypes=None
+widths=[3, 3, 7, 3, 5, 5, 19]
+ellipsis_rows=[5] ellipsis_cols=[]
+H0: <_"" H I | >t"id" H | >t"x" H | >t"y" H | <t"group" H | <t"flag" H | <t"ts" H
+B0: <n"0" H I | >n"0" | >n"0.1753" | >n"50" | <t"E" | <b"False" | <t"2024-01-01 00:00:00"
+B1: <n"1" H I | >n"1" | >n"0.3921" | >n"9" | <t"E" | <b"True" | <t"2024-01-01 00:15:00"
+B2: <n"2" H I | >n"2" | >n"-0.3771" | >n"1" | <t"D" | <b"False" | <t"2024-01-01 00:30:00"
+B3: <n"3" H I | >n"3" | >n"1.0292" | >n"39" | <t"B" | <b"True" | <t"2024-01-01 00:45:00"
+B4: <n"4" H I | >n"4" | >n"0.2104" | >n"3" | <t"E" | <b"False" | <t"2024-01-01 01:00:00"
+B5: <e"..." H I | =e"..." | =e"..." | =e"..." | =e"..." | =e"..." | =e"..."
+B6: <n"995" H I | >n"995" | >n"-0.9116" | >n"3" | <t"B" | <b"True" | <t"2024-01-11 08:45:00"
+B7: <n"996" H I | >n"996" | >n"1.4675" | >n"65" | <t"B" | <b"False" | <t"2024-01-11 09:00:00"
+B8: <n"997" H I | >n"997" | >n"1.5899" | >n"29" | <t"B" | <b"True" | <t"2024-01-11 09:15:00"
+B9: <n"998" H I | >n"998" | >n"1.5545" | >n"25" | <t"A" | <b"True" | <t"2024-01-11 09:30:00"
+B10: <n"999" H I | >n"999" | >n"-0.0212" | >n"48" | <t"B" | <b"True" | <t"2024-01-11 09:45:00"

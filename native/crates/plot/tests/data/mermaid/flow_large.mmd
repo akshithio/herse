@@ -1,0 +1,55 @@
+flowchart TD
+    subgraph ingest [Ingestion]
+        s3[(Raw S3 bucket)] --> crawl[Crawler]
+        kafka[[Kafka topics]] --> stream[Stream reader]
+        api([Partner API]) --> poll[Poller]
+        crawl --> validate{Schema valid?}
+        stream --> validate
+        poll --> validate
+        validate -->|no| dlq[(Dead letter queue)]
+        validate -->|yes| stage[Staging tables]
+    end
+    subgraph transform [Transform]
+        stage --> dedupe[Deduplicate]
+        dedupe --> enrich[Enrich with geo]
+        enrich --> join[Join customers]
+        join --> agg[Daily aggregates]
+        join --> features[Feature store]
+        agg --> quality{Quality checks}
+        quality -->|fail| alert>Page data on-call]
+        quality -->|pass| marts[Data marts]
+    end
+    subgraph ml [Models]
+        features --> train[Train churn model]
+        train --> evaluate{AUC > 0.8?}
+        evaluate -->|yes| registry[(Model registry)]
+        evaluate -->|no| tune[Tune hyperparameters]
+        tune --> train
+        registry --> serve[Batch scoring]
+        serve --> scores[(Scores table)]
+    end
+    subgraph serve_layer [Serving]
+        marts --> bi[BI dashboards]
+        marts --> exports[CSV exports]
+        scores --> crm[CRM sync]
+        scores --> bi
+        bi --> execs([Exec weekly review])
+        crm --> campaigns[Retention campaigns]
+        campaigns --> feedback[Campaign results]
+    end
+    feedback -.-> kafka
+    dlq --> triage[Manual triage]
+    triage --> fix[Fix parser]
+    fix -.-> crawl
+    alert --> runbook[Runbook]
+    runbook --> rerun[Re-run pipeline]
+    rerun -.-> stage
+    exports --> sftp[(Partner SFTP)]
+    marts --> catalog[Data catalog]
+    catalog --> docs[Docs site]
+    features --> drift[Drift monitor]
+    drift --> alert
+    serve --> audit[Audit log]
+    audit --> compliance[Compliance report]
+    compliance --> execs
+    crm --> audit

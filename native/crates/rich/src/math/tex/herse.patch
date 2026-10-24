@@ -1,0 +1,1459 @@
+diff -ruN -x render -x lib.rs lr-upstream/src/font/math.rs lr/src/font/math.rs
+--- lr-upstream/src/font/math.rs	2026-10-16 05:05:54
++++ lr/src/font/math.rs	2026-10-16 05:14:15
+@@ -148,6 +148,11 @@
+         self.glyph_value(2, glyph)
+     }
+ 
++    /// MathVariants `minConnectorOverlap`, in font units.
++    pub(super) fn min_connector_overlap(&self) -> Option<u16> {
++        ru16(&self.data, self.variants?)
++    }
++
+     /// Variant glyph ids and the assembly recipe, when the glyph is covered.
+     pub(super) fn construction(&self, glyph: u16, horizontal: bool) -> Option<Construction> {
+         let base = self.variants?;
+diff -ruN -x render -x lib.rs lr-upstream/src/font/mod.rs lr/src/font/mod.rs
+--- lr-upstream/src/font/mod.rs	2026-10-16 05:05:54
++++ lr/src/font/mod.rs	2026-10-16 05:14:15
+@@ -276,6 +276,39 @@
+             .collect()
+     }
+ 
++    /// Vertical glyph-assembly parts, bottom to top:
++    /// `(gid, start_connector, end_connector, advance, extender)` in font units.
++    pub fn vertical_assembly_parts(&self, glyph_id: u16) -> Vec<(u16, u16, u16, u16, bool)> {
++        let Some(found) = self
++            .math
++            .as_ref()
++            .and_then(|math| math.construction(glyph_id, false))
++        else {
++            return Vec::new();
++        };
++        found
++            .parts
++            .into_iter()
++            .map(|part| {
++                (
++                    part.glyph_id,
++                    part.start_connector,
++                    part.end_connector,
++                    part.full_advance,
++                    part.extender,
++                )
++            })
++            .collect()
++    }
++
++    /// MATH `minConnectorOverlap` in font units (0 without a MATH table).
++    pub fn min_connector_overlap(&self) -> u16 {
++        self.math
++            .as_ref()
++            .and_then(|math| math.min_connector_overlap())
++            .unwrap_or(0)
++    }
++
+     /// Horizontal MATH variants of `glyph_id`, including the base glyph first.
+     pub fn horizontal_variants(&self, glyph_id: u16) -> Vec<u16> {
+         self.variants(glyph_id, true)
+diff -ruN -x render -x lib.rs lr-upstream/src/layout/engine.rs lr/src/layout/engine.rs
+--- lr-upstream/src/layout/engine.rs	2026-10-16 05:05:54
++++ lr/src/layout/engine.rs	2026-10-16 06:06:39
+@@ -345,13 +345,33 @@
+             }
+             MathNode::Row(items) => self.row(items, style),
+             MathNode::Fraction(kind, num, den) => {
+-                self.fraction(num, den, frac_math_style(*kind, style))
++                self.fraction(num, den, frac_math_style(*kind, style), kind.has_rule())
+             }
+             MathNode::Radical(deg, rad) => self.radical(deg.as_deref(), rad, style),
+             MathNode::Superscript(base, exp) => self.scripts(base, None, Some(exp), style),
+             MathNode::Subscript(base, sub) => self.scripts(base, Some(sub), None, style),
+             MathNode::SubSup(base, sub, exp) => self.scripts(base, Some(sub), Some(exp), style),
+             MathNode::Delimited(open, body, close) => self.delimited(open, body, close, style),
++            MathNode::SizedDelim(d, DelimSize::Middle, k) => {
++                // herse: zero-size placeholder; `delimited` swaps in a glyph
++                // sized like the enclosing `\left` / `\right`.
++                let ch = match d {
++                    Delimiter::Empty => ' ',
++                    Delimiter::Char(c) => *c,
++                    Delimiter::Named(n) => named_delim(n)?,
++                };
++                Ok(Item {
++                    class: Some(*k),
++                    bx: MathBox {
++                        width: Dim::zero(),
++                        height: Dim::zero(),
++                        depth: Dim::zero(),
++                        italic: Dim::zero(),
++                        shift: Dim::zero(),
++                        content: BoxContent::glyph(ch, MIDDLE_PLACEHOLDER, Dim::one()),
++                    },
++                })
++            }
+             MathNode::SizedDelim(d, size, k) => {
+                 let needed = self.explicit_delim_span(*size, style);
+                 Ok(Item {
+@@ -377,6 +397,13 @@
+                     class: Some(AtomKind::Ord),
+                 })
+             }
++            MathNode::Class(kind, _) => {
++                let bx = self.take_box()?;
++                Ok(Item {
++                    class: Some(*kind),
++                    bx,
++                })
++            }
+             MathNode::Phantom(kind, inner) => {
+                 let mut bx = self.take_box()?;
+                 match kind {
+@@ -408,7 +435,9 @@
+             MathNode::Limit(sub) => {
+                 let op = self.text_run("lim", TextStyle::Rm, style)?;
+                 if let Some(s) = sub {
+-                    self.attach_limits(op.bx, None, Some(s), style, true)
++                    // herse: `\lim` is \displaylimits — under in display style,
++                    // a subscript in text style.
++                    self.attach_limits(op.bx, None, Some(s), style, style.is_display())
+                 } else {
+                     Ok(Item {
+                         bx: op.bx,
+@@ -680,7 +709,7 @@
+         })
+     }
+ 
+-    fn fraction(&self, _num: &MathNode, _den: &MathNode, style: MathStyle) -> Result<Item, Error> {
++    fn fraction(&self, _num: &MathNode, _den: &MathNode, style: MathStyle, rule: bool) -> Result<Item, Error> {
+         let num_b = self.take_box()?;
+         let den_b = self.take_box()?;
+         let s = self.params.scale(style);
+@@ -702,8 +731,36 @@
+                 &self.params.fraction_denominator_gap_min * &s,
+             )
+         };
+-        let num_shift = shift_up0.max(&(&axis + &half + &gap_num + &num_b.depth));
+-        let den_shift = shift_dn0.max(&(&den_b.height + &gap_den + &half - &axis).clamp_nonneg());
++        let (num_shift, den_shift) = if rule {
++            (
++                shift_up0.max(&(&axis + &half + &gap_num + &num_b.depth)),
++                shift_dn0.max(&(&den_b.height + &gap_den + &half - &axis).clamp_nonneg()),
++            )
++        } else {
++            // herse: TeX rule 15c for `\atop`/`\binom`: OpenType stack
++            // shifts, then open the gap to StackGapMin (×7/3 in display, like
++            // TeX's 7·rule vs 3·rule clearance), split evenly.
++            let (up, dn, min_gap) = if style.is_display() {
++                (
++                    shift_up0.clone(),
++                    shift_dn0.clone(),
++                    &self.params.stack_gap_min * &s * Dim::ratio(7, 3),
++                )
++            } else {
++                (
++                    &self.params.stack_top_shift_up * &s,
++                    &self.params.stack_bottom_shift_down * &s,
++                    &self.params.stack_gap_min * &s,
++                )
++            };
++            let clearance = &(&up - &num_b.depth) - &(&den_b.height - &dn);
++            if clearance < min_gap {
++                let half_fix = &(&min_gap - &clearance) / &Dim::from_i64(2);
++                (&up + &half_fix, &dn + &half_fix)
++            } else {
++                (up, dn)
++            }
++        };
+         let content_width = num_b.width.max(&den_b.width);
+         let num_c = center_in(num_b, &content_width);
+         let den_c = center_in(den_b, &content_width);
+@@ -717,11 +774,11 @@
+             depth: &den_shift + &den_d,
+             italic: Dim::zero(),
+             shift: Dim::zero(),
+-            content: BoxContent::Overlap(vec![
+-                num_c.with_shift(num_shift),
+-                bar,
+-                den_c.with_shift(-den_shift),
+-            ]),
++            content: BoxContent::Overlap(if rule {
++                vec![num_c.with_shift(num_shift), bar, den_c.with_shift(-den_shift)]
++            } else {
++                vec![num_c.with_shift(num_shift), den_c.with_shift(-den_shift)]
++            }),
+         };
+ 
+         Ok(Item {
+@@ -820,12 +877,19 @@
+ 
+     fn scripts(
+         &self,
+-        _base: &MathNode,
++        base: &MathNode,
+         sub: Option<&MathNode>,
+         sup: Option<&MathNode>,
+         style: MathStyle,
+     ) -> Result<Item, Error> {
+         let base_it = self.take_item()?;
++        // herse: operators flagged for limits (`\max`, `\bigcup`,
++        // `\operatorname*`, `\limits`) take them above/below in display style.
++        if let MathNode::Operator(_, true) | MathNode::Class(AtomKind::Op, _) = base {
++            if style.is_display() {
++                return self.attach_limits(base_it.bx, sup, sub, style, true);
++            }
++        }
+         self.attach_scripts_to_box(base_it.bx, base_it.class, sub, sup, style)
+     }
+ 
+@@ -979,6 +1043,7 @@
+         let s = self.params.scale(style);
+         let axis = &self.params.axis_height * &s;
+         let needed = self.delimiter_target(&body_b.height, &body_b.depth, &axis);
++        let body_b = self.size_middles(body_b, &needed, &axis, style)?;
+         let left = self.center_delimiter(self.delim_box(open, &needed, style)?, &axis);
+         let right = self.center_delimiter(self.delim_box(close, &needed, style)?, &axis);
+         Ok(Item {
+@@ -987,6 +1052,30 @@
+         })
+     }
+ 
++    /// herse: replace `\middle` placeholders in a `\left…\right` body (and
++    /// its plain groups) with delimiters of the enclosing size.
++    fn size_middles(&self, bx: MathBox, needed: &Dim, axis: &Dim, style: MathStyle) -> Result<MathBox, Error> {
++        if !contains_middle(&bx) {
++            return Ok(bx);
++        }
++        let mut bx = bx;
++        if let BoxContent::Glyph { ch, glyph_id: MIDDLE_PLACEHOLDER, .. } = bx.content {
++            if ch == ' ' {
++                return Ok(MathBox::empty());
++            }
++            return Ok(self.center_delimiter(self.sized_glyph(ch, needed, style)?, axis));
++        }
++        if let BoxContent::HList(children) = std::mem::replace(&mut bx.content, BoxContent::Empty) {
++            let mut out = Vec::with_capacity(children.len());
++            for c in children {
++                out.push(self.size_middles(c, needed, axis, style)?);
++            }
++            let shift = bx.shift.clone();
++            return Ok(shifted_hpack(out).with_shift(shift));
++        }
++        Ok(bx)
++    }
++
+     fn delimiter_target(&self, height: &Dim, depth: &Dim, axis: &Dim) -> Dim {
+         let above = (height - axis).clamp_nonneg();
+         let below = depth + axis;
+@@ -1014,6 +1103,7 @@
+             DelimSize::Big2 => 18,
+             DelimSize::Bigg => 24,
+             DelimSize::Bigg2 => 30,
++            DelimSize::Middle => 12,
+         };
+         em * Dim::from_i64(n) / Dim::from_i64(10)
+     }
+@@ -1045,9 +1135,90 @@
+                 best = cand;
+             }
+         }
++        // herse: no variant is tall enough -> build the MATH glyph assembly
++        // (extensible `|`, `\|`, and parens/brackets/braces past their largest
++        // variant), as TeX does with extensible recipes.
++        if best_span.cmp(needed).is_some_and(|o| o == Ordering::Less) {
++            if let Some(asm) = self.assemble_v(ch, base.glyph_id, needed, style) {
++                if (&asm.height + &asm.depth).cmp(&best_span).is_some_and(|o| o == Ordering::Greater) {
++                    return Ok(asm);
++                }
++            }
++        }
+         Ok(best)
+     }
+ 
++    /// herse: vertical MATH glyph assembly reaching at least `needed`. Parts are
++    /// stacked bottom to top with each part's baseline at its running offset,
++    /// connector overlaps spread evenly between `minConnectorOverlap` and what
++    /// the connectors allow. Returns a box with height = assembly, depth 0.
++    fn assemble_v(&self, ch: char, gid: u16, needed: &Dim, style: MathStyle) -> Option<MathBox> {
++        let parts = self.font.vertical_assembly_parts(gid);
++        if parts.is_empty() {
++            return None;
++        }
++        let s = self.params.scale(style);
++        let fu = |n: u16| Dim::from_font_units(i64::from(n), self.params.units_per_em) * &s;
++        let min_overlap = fu(self.font.min_connector_overlap());
++        let sequence = |copies: u32| {
++            let mut v = Vec::new();
++            for &(id, start, end, adv, ext) in &parts {
++                let n = if ext { copies } else { 1 };
++                for _ in 0..n {
++                    v.push((id, start, end, adv));
++                }
++            }
++            v
++        };
++        let max_span = |seq: &[(u16, u16, u16, u16)]| {
++            let mut h = Dim::zero();
++            for (i, p) in seq.iter().enumerate() {
++                h = &h + &fu(p.3);
++                if i > 0 {
++                    h = &h - &min_overlap;
++                }
++            }
++            h
++        };
++        let mut copies = 1u32;
++        let mut seq = sequence(copies);
++        while max_span(&seq) < *needed && copies < 256 {
++            copies += 1;
++            seq = sequence(copies);
++        }
++        if seq.is_empty() {
++            return None;
++        }
++        let joints = seq.len().saturating_sub(1);
++        let total: Dim = seq.iter().fold(Dim::zero(), |a, p| &a + &fu(p.3));
++        let uniform = if joints > 0 {
++            ((&total - needed) / Dim::from_i64(joints as i64)).max(&min_overlap)
++        } else {
++            Dim::zero()
++        };
++        let mut kids = Vec::with_capacity(seq.len());
++        let mut offset = Dim::zero();
++        let mut width = Dim::zero();
++        for (i, &(id, start, _, adv)) in seq.iter().enumerate() {
++            if i > 0 {
++                let allowed = fu(seq[i - 1].2.min(start)).max(&min_overlap);
++                offset = &offset - &uniform.min(&allowed);
++            }
++            let g = self.glyph_id(ch, id, style).ok()?;
++            width = width.max(&g.width);
++            kids.push(g.with_shift(offset.clone()));
++            offset = &offset + &fu(adv);
++        }
++        Some(MathBox {
++            width,
++            height: offset,
++            depth: Dim::zero(),
++            italic: Dim::zero(),
++            shift: Dim::zero(),
++            content: BoxContent::Overlap(kids),
++        })
++    }
++
+     fn stretch_h(&self, base: MathBox, needed: &Dim, style: MathStyle) -> Result<MathBox, Error> {
+         let BoxContent::Glyph { ch, glyph_id, .. } = base.content else {
+             return Ok(base);
+@@ -1424,21 +1595,24 @@
+         let mut height = op_h.clone();
+         let mut depth = op_d.clone();
+         let mut kids = vec![center_in(op, &width)];
++        // herse: OpenType MATH limit placement (as in `attach_large_op_limits`):
++        // the baseline rise/drop minimum and the edge gap are alternatives,
++        // not added together (limits sat ~0.3 em too far away).
+         if let Some(ob) = over_b {
+             let gap = self.params.upper_limit_gap_min.clone() * &s;
+             let rise = self.params.upper_limit_baseline_rise_min.clone() * &s;
+-            let extra = gap.max(&rise);
+-            height = &height + &ob.height + &ob.depth + &extra;
+-            let sh = &op_h + &extra + &ob.depth;
++            let offset = rise.max(&(&gap + &ob.depth));
++            let sh = &op_h + &offset;
++            height = height.max(&(&sh + &ob.height));
+             kids.push(center_in(ob, &width).with_shift(sh));
+         }
+         if let Some(ub) = under_b {
+             let gap = self.params.lower_limit_gap_min.clone() * &s;
+             let drop = self.params.lower_limit_baseline_drop_min.clone() * &s;
+-            let extra = gap.max(&drop);
+-            depth = &depth + &ub.height + &ub.depth + &extra;
+-            let sh = -(&op_d + &extra + &ub.height);
+-            kids.push(center_in(ub, &width).with_shift(sh));
++            let offset = drop.max(&(&gap + &ub.height));
++            let sh = &op_d + &offset;
++            depth = depth.max(&(&sh + &ub.depth));
++            kids.push(center_in(ub, &width).with_shift(-sh));
+         }
+         Ok(Item {
+             class: Some(AtomKind::Op),
+@@ -1771,14 +1945,16 @@
+ 
+     fn accent_x_off(&self, base: &MathBox, acc: &MathBox, kind: AccentKind) -> Dim {
+         let two = Dim::from_i64(2);
+-        let base_att = first_glyph_id(base)
++        // herse: TeX skews accents only over a single character; a longer
++        // nucleus (`\vec{AB}`) gets its accent centred.
++        let base_att = single_glyph_id(base)
+             .and_then(|id| self.font.top_accent_attachment(id))
+             .unwrap_or_else(|| (&base.width + &base.italic) / &two);
+         let acc_att = first_glyph_id(acc)
+             .and_then(|id| self.font.top_accent_attachment(id))
+             .unwrap_or_else(|| &acc.width / &two);
+         match kind {
+-            AccentKind::Vec | AccentKind::Overrightarrow | AccentKind::Underrightarrow => {
++            AccentKind::Overrightarrow | AccentKind::Underrightarrow => {
+                 &base.width + &base.italic - &acc.width
+             }
+             AccentKind::Acute => &base_att - &acc_att + &(&acc.width / &Dim::from_i64(4)),
+@@ -1842,7 +2018,9 @@
+         let Some(num) = num else {
+             return body;
+         };
+-        let gap = self.params.em(style);
++        // herse: a \qquad between the body and its number (MathJax pushes
++        // it to the container edge; a standalone SVG has no edge).
++        let gap = self.params.em(style) * Dim::from_i64(2);
+         MathBox::hpack(vec![body, MathBox::kern(gap), num])
+     }
+ 
+@@ -2159,6 +2337,24 @@
+ 
+     // TeX appends \baselineskip - prevdepth - height when that glue is
+     // at least \lineskiplimit, and \lineskip otherwise.
++    /// herse: stack `align`/`gather` rows like amsmath: baselines
++    /// `\baselineskip + \jot` (15pt) apart, `\lineskip + \jot` between
++    /// rows too tall for that (they were 0.2 em apart, so plain rows
++    /// touched).
++    fn amsmath_rows_stack(&self, rows: Vec<MathBox>) -> MathBox {
++        let skip = self.tex_points_in_root_em(TEX_BASELINE_SKIP_PT + TEX_JOT_PT);
++        let line = self.tex_points_in_root_em(TEX_LINE_SKIP_PT + TEX_JOT_PT);
++        let gaps = self.tex_interrow_gaps(&rows, &skip, &line, &Dim::zero());
++        let mut out = Vec::with_capacity(rows.len() * 2);
++        for (i, r) in rows.into_iter().enumerate() {
++            if i > 0 {
++                out.push(sep_row(gaps[i - 1].clone()));
++            }
++            out.push(r);
++        }
++        MathBox::vpack(out)
++    }
++
+     fn tex_interrow_gaps(
+         &self,
+         rows: &[MathBox],
+@@ -2291,7 +2487,7 @@
+             }
+         }
+         let pair_sep = self.params.em(style);
+-        let row_sep = self.params.em(style) / Dim::from_i64(5);
++        let _row_sep = self.params.em(style) / Dim::from_i64(5);
+         let mut packed = Vec::new();
+         let mut mi = 0;
+         for extra in extras {
+@@ -2302,15 +2498,9 @@
+                     });
+                 }
+                 RowKind::Intertext(t) => {
+-                    if !packed.is_empty() {
+-                        packed.push(sep_row(row_sep.clone()));
+-                    }
+                     packed.push(*t);
+                 }
+                 RowKind::Cells => {
+-                    if !packed.is_empty() {
+-                        packed.push(sep_row(row_sep.clone()));
+-                    }
+                     let mut parts = Vec::new();
+                     let row = pad_row(math_rows[mi].clone(), ncols);
+                     for (j, cell) in row.into_iter().enumerate() {
+@@ -2335,12 +2525,12 @@
+         }
+         Ok(Item {
+             class: Some(AtomKind::Inner),
+-            bx: MathBox::vpack(packed),
++            bx: self.amsmath_rows_stack(packed),
+         })
+     }
+ 
+     fn gather_env(&self, rows: &[EnvRow], style: MathStyle) -> Result<Item, Error> {
+-        let row_sep = self.params.em(style) / Dim::from_i64(5);
++        let _row_sep = self.params.em(style) / Dim::from_i64(5);
+         let mut bodies = Vec::new();
+         let mut kinds = Vec::new();
+         for row in rows {
+@@ -2363,9 +2553,6 @@
+         let mut packed = Vec::new();
+         let mut bi = 0;
+         for kind in kinds {
+-            if !packed.is_empty() {
+-                packed.push(sep_row(row_sep.clone()));
+-            }
+             match kind {
+                 RowKind::Intertext(t) => packed.push(*t),
+                 RowKind::Cells => {
+@@ -2382,7 +2569,7 @@
+         }
+         Ok(Item {
+             class: Some(AtomKind::Inner),
+-            bx: MathBox::vpack(packed),
++            bx: self.amsmath_rows_stack(packed),
+         })
+     }
+ 
+@@ -2441,15 +2628,21 @@
+         })
+     }
+ 
++    /// herse: LaTeX `array` metrics — `\arraycolsep` (5pt) on both sides of
++    /// every column, rows on `\arraystretch` struts (8.4pt + 3.6pt) with no
++    /// extra gap, 0.4pt rules (vertical rules span whole rows, `\hline`
++    /// sits between rows), the whole table centred on the math axis.
+     fn array_env(
+         &self,
+         spec: &[ColSpec],
+         rows: &[EnvRow],
+         style: MathStyle,
+     ) -> Result<Item, Error> {
+-        let thick = self.params.fraction_rule_thickness.clone() * self.params.scale(style);
+-        let col_sep = self.params.mu(style) * Dim::from_i64(10);
+-        let row_sep = self.params.em(style) / Dim::from_i64(5);
++        let rule_w = self.tex_points_in_root_em(4) / Dim::from_i64(10);
++        let col_sep = self.tex_points_in_root_em(TEX_ARRAY_COLSEP_PT);
++        let strut_h = self.tex_points_in_root_em(84) / Dim::from_i64(10);
++        let strut_d = self.tex_points_in_root_em(36) / Dim::from_i64(10);
++        let double_rule_sep = self.tex_points_in_root_em(2);
+         let mut kinds = Vec::new();
+         let mut data: Vec<Vec<MathBox>> = Vec::new();
+         let mut ncols_data = 0;
+@@ -2485,16 +2678,7 @@
+                 row.push(MathBox::empty());
+             }
+         }
+-        let mut col_w: Vec<Dim> = spec
+-            .iter()
+-            .map(|c| {
+-                if c.is_rule() {
+-                    thick.clone()
+-                } else {
+-                    Dim::zero()
+-                }
+-            })
+-            .collect();
++        let mut col_w: Vec<Dim> = vec![Dim::zero(); spec.len()];
+         for row in &data {
+             let mut dj = 0;
+             for (j, sp) in spec.iter().enumerate() {
+@@ -2508,34 +2692,34 @@
+             }
+         }
+         let mut table_w = Dim::zero();
+-        for (j, _) in spec.iter().enumerate() {
+-            if j > 0 && !spec[j].is_rule() && !spec[j - 1].is_rule() {
+-                table_w = &table_w + &col_sep;
+-            }
+-            table_w = &table_w + &col_w[j];
++        for (j, sp) in spec.iter().enumerate() {
++            table_w = if sp.is_rule() {
++                &table_w + &rule_w
++            } else {
++                &table_w + &col_w[j] + &col_sep + &col_sep
++            };
+         }
+-        let mut packed = Vec::new();
++        let mut packed: Vec<MathBox> = Vec::new();
+         let mut di = 0;
++        let mut last_hline = false;
+         for kind in kinds {
+             match kind {
+                 RowKind::Hline => {
+-                    packed.push(MathBox::rule(table_w.clone(), thick.clone(), Dim::zero()));
++                    if last_hline {
++                        packed.push(sep_row(double_rule_sep.clone()));
++                    }
++                    packed.push(MathBox::rule(table_w.clone(), rule_w.clone(), Dim::zero()));
++                    last_hline = true;
+                 }
+                 RowKind::Intertext(t) => {
+-                    if !packed.is_empty() {
+-                        packed.push(sep_row(row_sep.clone()));
+-                    }
+                     packed.push(*t);
++                    last_hline = false;
+                 }
+                 RowKind::Cells => {
+-                    if !packed.is_empty()
+-                        && !matches!(packed.last().map(|b| &b.content), Some(BoxContent::Rule))
+-                    {
+-                        packed.push(sep_row(row_sep.clone()));
+-                    }
++                    last_hline = false;
+                     let row = &data[di];
+-                    let mut rh = Dim::zero();
+-                    let mut rd = Dim::zero();
++                    let mut rh = strut_h.clone();
++                    let mut rd = strut_d.clone();
+                     for c in row {
+                         rh = rh.max(&c.height);
+                         rd = rd.max(&c.depth);
+@@ -2543,12 +2727,9 @@
+                     let mut parts = Vec::new();
+                     let mut dj = 0;
+                     for (j, sp) in spec.iter().enumerate() {
+-                        if j > 0 && !sp.is_rule() && !spec[j - 1].is_rule() {
+-                            parts.push(MathBox::kern(col_sep.clone()));
+-                        }
+                         if sp.is_rule() {
+                             parts.push(MathBox {
+-                                width: thick.clone(),
++                                width: rule_w.clone(),
+                                 height: rh.clone(),
+                                 depth: rd.clone(),
+                                 italic: Dim::zero(),
+@@ -2557,22 +2738,49 @@
+                             });
+                         } else {
+                             let cell = row.get(dj).cloned().unwrap_or_else(MathBox::empty);
++                            parts.push(MathBox::kern(col_sep.clone()));
+                             parts.push(align_in(cell, &col_w[j], *sp));
++                            parts.push(MathBox::kern(col_sep.clone()));
+                             dj += 1;
+                         }
+                     }
+-                    packed.push(MathBox::hpack(parts));
++                    let mut line = MathBox::hpack(parts);
++                    line.height = rh;
++                    line.depth = rd;
++                    packed.push(line);
+                     di += 1;
+                 }
+             }
+         }
++        if packed.is_empty() {
++            return Ok(Item {
++                class: Some(AtomKind::Inner),
++                bx: MathBox::empty(),
++            });
++        }
++        let mut stack = MathBox::vpack(packed);
++        let span = &stack.height + &stack.depth;
++        let axis = &self.params.axis_height * &self.params.scale(style);
++        let desired = &(&span / &Dim::from_i64(2)) + &axis;
++        stack.shift = &desired - &stack.height;
+         Ok(Item {
+             class: Some(AtomKind::Inner),
+-            bx: MathBox::vpack(packed),
++            bx: shifted_hpack(vec![stack]),
+         })
+     }
+ }
+ 
++/// herse: glyph id marking an unsized `\middle` delimiter.
++pub const MIDDLE_PLACEHOLDER: u16 = u16::MAX;
++
++fn contains_middle(b: &MathBox) -> bool {
++    match &b.content {
++        BoxContent::Glyph { glyph_id, .. } => *glyph_id == MIDDLE_PLACEHOLDER,
++        BoxContent::HList(v) => v.iter().any(contains_middle),
++        _ => false,
++    }
++}
++
+ fn shifted_hpack(children: Vec<MathBox>) -> MathBox {
+     let mut width = Dim::zero();
+     let mut height = Dim::zero();
+@@ -2918,6 +3126,7 @@
+             | AccentKind::Tilde
+             | AccentKind::WideTilde
+             | AccentKind::Bar
++            | AccentKind::Vec
+             | AccentKind::Dot
+             | AccentKind::Ddot
+             | AccentKind::Dddot
+@@ -2945,7 +3154,9 @@
+         AccentKind::Grave => &['`', '\u{0300}'],
+         AccentKind::Tilde | AccentKind::WideTilde => &['˜', '\u{0303}'],
+         AccentKind::Bar => &['¯', '\u{0304}'],
+-        AccentKind::Vec => &['→', '\u{20D7}'],
++        // herse: the combining arrow is TeX's small \vec; U+2192 is a full
++        // 0.95 em arrow that widened every \vec nucleus.
++        AccentKind::Vec => &['\u{20D7}', '→'],
+         AccentKind::Dot => &['˙', '\u{0307}'],
+         AccentKind::Ddot => &['¨', '\u{0308}'],
+         AccentKind::Dddot => &['\u{20DB}'],
+@@ -2968,9 +3179,9 @@
+ 
+ fn frac_math_style(kind: FracStyle, ambient: MathStyle) -> MathStyle {
+     match kind {
+-        FracStyle::Frac => ambient,
+-        FracStyle::Dfrac | FracStyle::Cfrac => MathStyle::Display,
+-        FracStyle::Tfrac => MathStyle::Text,
++        FracStyle::Frac | FracStyle::Atop => ambient,
++        FracStyle::Dfrac | FracStyle::Cfrac | FracStyle::Datop => MathStyle::Display,
++        FracStyle::Tfrac | FracStyle::Tatop => MathStyle::Text,
+     }
+ }
+ 
+@@ -3004,6 +3215,7 @@
+             | MathNode::ColorBox(_, b)
+             | MathNode::FColorBox(_, _, b)
+             | MathNode::Phantom(_, b) => n = b,
++            MathNode::Class(k, _) => return Some(*k),
+             MathNode::Text(_, _) | MathNode::Ref(_) => return Some(AtomKind::Ord),
+             MathNode::Row(v) if v.len() == 1 => n = &v[0],
+             MathNode::Row(_) => return Some(AtomKind::Ord),
+diff -ruN -x render -x lib.rs lr-upstream/src/layout/engine_walk.rs lr/src/layout/engine_walk.rs
+--- lr-upstream/src/layout/engine_walk.rs	2026-10-16 05:05:54
++++ lr/src/layout/engine_walk.rs	2026-10-16 05:26:32
+@@ -307,9 +307,16 @@
+                     let depth = walk.depth;
+                     let style = walk.style;
+                     stack.push(Work::Align(walk));
+-                    for cell in cells.into_iter().rev() {
++                    for (column, cell) in cells.into_iter().enumerate().rev() {
++                        // herse: amsmath sets the right column of each pair as
++                        // `{}#`, so `&=` gets relation spacing on its left.
++                        let src = if column % 2 == 1 {
++                            Src::Heap(self.push_owned(prefixed_cell(cell)))
++                        } else {
++                            Src::Tree(cell)
++                        };
+                         stack.push(Work::Enter {
+-                            src: Src::Tree(cell),
++                            src,
+                             style,
+                             depth: depth + 1,
+                         });
+@@ -392,6 +399,7 @@
+             }
+             MathNode::Delimited(_, body, _)
+             | MathNode::Phantom(_, body)
++            | MathNode::Class(_, body)
+             | MathNode::Color(_, body)
+             | MathNode::TextColor(_, body)
+             | MathNode::ColorBox(_, body)
+diff -ruN -x render -x lib.rs lr-upstream/src/layout/mod.rs lr/src/layout/mod.rs
+--- lr-upstream/src/layout/mod.rs	2026-10-16 05:05:54
++++ lr/src/layout/mod.rs	2026-10-16 05:27:25
+@@ -7,6 +7,7 @@
+ mod style;
+ 
+ pub use engine::{
++    MIDDLE_PLACEHOLDER,
+     layout, layout_with_em_size_pt, layout_with_max_depth, layout_with_numbering,
+     layout_with_numbering_and_em_size_pt,
+ };
+diff -ruN -x render -x lib.rs lr-upstream/src/layout/numbering.rs lr/src/layout/numbering.rs
+--- lr-upstream/src/layout/numbering.rs	2026-10-16 05:05:54
++++ lr/src/layout/numbering.rs	2026-10-16 05:26:32
+@@ -46,6 +46,9 @@
+     pub start: usize,
+     /// Parentheses, brackets, or none.
+     pub format: NumberFormat,
++    /// herse: number unnumbered-by-default rows (`equation`, `align`, …).
++    /// `false` keeps only explicit `\tag`s, like MathJax's `tags: 'none'`.
++    pub auto: bool,
+ }
+ 
+ impl Default for NumberingConfig {
+@@ -54,6 +57,7 @@
+             style: NumberStyle::Arabic,
+             start: 1,
+             format: NumberFormat::Parenthesized,
++            auto: true,
+         }
+     }
+ }
+@@ -214,6 +218,7 @@
+         | MathNode::TextColor(_, body)
+         | MathNode::ColorBox(_, body)
+         | MathNode::Phantom(_, body)
++        | MathNode::Class(_, body)
+         | MathNode::Intertext(body)
+         | MathNode::Tag { body, .. }
+         | MathNode::FColorBox(_, _, body) => stack.push(Collect::Node(body)),
+@@ -300,6 +305,7 @@
+             let display = if *star { plain } else { st.wrap(&plain) };
+             Some(display)
+         }
++        EqNumber::Default if !st.config.auto => None,
+         EqNumber::Default => Some(st.auto_display()),
+     }
+ }
+diff -ruN -x render -x lib.rs lr-upstream/src/parser/ast.rs lr/src/parser/ast.rs
+--- lr-upstream/src/parser/ast.rs	2026-10-16 05:05:54
++++ lr/src/parser/ast.rs	2026-10-16 05:58:47
+@@ -572,6 +572,8 @@
+     Bigg,
+     /// `\Bigg` — about 3.0 em.
+     Bigg2,
++    /// herse: `\middle` — sized like the enclosing `\left` / `\right`.
++    Middle,
+ }
+ 
+ impl DelimSize {
+@@ -581,6 +583,7 @@
+             Self::Big2 => "Big",
+             Self::Bigg => "bigg",
+             Self::Bigg2 => "Bigg",
++            Self::Middle => "middle",
+         }
+     }
+ 
+@@ -627,6 +630,12 @@
+     Tfrac,
+     /// `\cfrac`. Layout uses display style.
+     Cfrac,
++    /// herse: no fraction rule (`\binom`, `\atop`, `\genfrac` with 0pt), ambient style.
++    Atop,
++    /// herse: no rule, display style (`\dbinom`).
++    Datop,
++    /// herse: no rule, text style (`\tbinom`).
++    Tatop,
+ }
+ 
+ impl FracStyle {
+@@ -636,8 +645,17 @@
+             Self::Dfrac => "dfrac",
+             Self::Tfrac => "tfrac",
+             Self::Cfrac => "cfrac",
++            Self::Atop => "atop",
++            Self::Datop => "datop",
++            Self::Tatop => "tatop",
+         }
+     }
++
++    /// herse: whether the fraction draws its rule.
++    #[must_use]
++    pub fn has_rule(self) -> bool {
++        !matches!(self, Self::Atop | Self::Datop | Self::Tatop)
++    }
+ }
+ 
+ /// Typed math-mode syntax tree.
+@@ -732,6 +750,10 @@
+     Strut(Dim, Dim),
+     /// `\phantom` family.
+     Phantom(PhantomKind, Box<MathNode>),
++    /// herse: `\mathop`, `\mathrel`, `\mathbin`, `\mathord`, `\mathopen`,
++    /// `\mathclose`, `\mathpunct`, `\mathinner` — the body as one atom of
++    /// the given class.
++    Class(AtomKind, Box<MathNode>),
+ }
+ 
+ impl Clone for MathNode {
+@@ -809,7 +831,8 @@
+             | Self::Color(_, body)
+             | Self::TextColor(_, body)
+             | Self::ColorBox(_, body)
+-            | Self::Phantom(_, body) => push_box(out, body),
++            | Self::Phantom(_, body)
++            | Self::Class(_, body) => push_box(out, body),
+             Self::FColorBox(_, _, body) => push_box(out, body),
+             Self::Atom(_, _)
+             | Self::SizedDelim(_, _, _)
+@@ -909,6 +932,7 @@
+     ColorBox(Color),
+     FColorBox(Color, Color),
+     Phantom(PhantomKind),
++    Class(AtomKind),
+ }
+ 
+ enum RowPlan {
+@@ -1084,6 +1108,10 @@
+             tasks.push(CloneTask::Finish(Finish::Wrap(WrapKind::Phantom(*kind))));
+             tasks.push(CloneTask::Node(body));
+         }
++        MathNode::Class(kind, body) => {
++            tasks.push(CloneTask::Finish(Finish::Wrap(WrapKind::Class(*kind))));
++            tasks.push(CloneTask::Node(body));
++        }
+         MathNode::Intertext(body) => {
+             tasks.push(CloneTask::Finish(Finish::Intertext));
+             tasks.push(CloneTask::Node(body));
+@@ -1260,6 +1288,7 @@
+                 WrapKind::ColorBox(color) => MathNode::ColorBox(color, body),
+                 WrapKind::FColorBox(border, fill) => MathNode::FColorBox(border, fill, body),
+                 WrapKind::Phantom(phantom) => MathNode::Phantom(phantom, body),
++                WrapKind::Class(kind) => MathNode::Class(kind, body),
+             });
+         }
+         Finish::Intertext => {
+@@ -1704,6 +1733,11 @@
+             gold_node(buf, b);
+             gold_text(buf, ")");
+         }
++        MathNode::Class(k, b) => {
++            gold_text(buf, format!("(class {} ", k.gold()));
++            gold_node(buf, b);
++            gold_text(buf, ")");
++        }
+     }
+ }
+ 
+@@ -1846,7 +1880,7 @@
+             if let (
+                 Delimiter::Char('('),
+                 Delimiter::Char(')'),
+-                MathNode::Fraction(FracStyle::Frac, n, d),
++                MathNode::Fraction(FracStyle::Atop, n, d),
+             ) = (open, close, body.as_ref())
+             {
+                 write_cmd(out, "binom");
+@@ -1863,7 +1897,9 @@
+         MathNode::SizedDelim(delim, size, kind) => {
+             out.push('\\');
+             out.push_str(size.gold());
+-            out.push_str(sized_suffix(*kind, delim));
++            if *size != DelimSize::Middle {
++                out.push_str(sized_suffix(*kind, delim));
++            }
+             out.push(' ');
+             write_delim(out, delim);
+         }
+@@ -1961,6 +1997,10 @@
+             write_cmd(out, kind.gold());
+             write_arg(out, body);
+         }
++        MathNode::Class(kind, body) => {
++            write_cmd(out, class_cmd(*kind));
++            write_arg(out, body);
++        }
+     }
+ }
+ 
+@@ -2699,7 +2739,10 @@
+         '=' | '<' | '>' | '≠' | '≤' | '≥' | '≈' | '≡' => AtomKind::Rel,
+         '(' | '[' | '{' => AtomKind::Open,
+         ')' | ']' | '}' => AtomKind::Close,
+-        ',' | ';' | '!' | '?' | ':' => AtomKind::Punct,
++        // herse: TeX mathcodes — `:` is a relation, `!` / `?` close.
++        ':' => AtomKind::Rel,
++        '!' | '?' => AtomKind::Close,
++        ',' | ';' => AtomKind::Punct,
+         _ => AtomKind::Ord,
+     }
+ }
+@@ -2842,4 +2885,18 @@
+         None => out.push_str(&hex),
+     }
+     out.push('}');
++}
++
++/// herse: the `\math…` command that sets an atom class.
++fn class_cmd(kind: AtomKind) -> &'static str {
++    match kind {
++        AtomKind::Ord => "mathord",
++        AtomKind::Op => "mathop",
++        AtomKind::Bin => "mathbin",
++        AtomKind::Rel => "mathrel",
++        AtomKind::Open => "mathopen",
++        AtomKind::Close => "mathclose",
++        AtomKind::Punct => "mathpunct",
++        AtomKind::Inner => "mathinner",
++    }
+ }
+diff -ruN -x render -x lib.rs lr-upstream/src/parser/group_rules.rs lr/src/parser/group_rules.rs
+--- lr-upstream/src/parser/group_rules.rs	2026-10-16 05:05:54
++++ lr/src/parser/group_rules.rs	2026-10-16 05:58:47
+@@ -11,7 +11,11 @@
+     let tokens = unwrap_delimiters(tokens);
+     let tokens = font_scopes(tokens);
+     let tokens = convert_infix(tokens, InfixKind::Over);
+-    convert_infix(tokens, InfixKind::Choose)
++    let tokens = convert_infix(tokens, InfixKind::Choose);
++    // herse: the other plain TeX infix generalized fractions.
++    let tokens = convert_infix(tokens, InfixKind::Atop);
++    let tokens = convert_infix(tokens, InfixKind::Brace);
++    convert_infix(tokens, InfixKind::Brack)
+ }
+ 
+ /// `{ (}`, `{ )}`, `{ ( }`, `{ ) }`, `{[}` and `{]}` become the bare delimiter.
+@@ -123,6 +127,9 @@
+ enum InfixKind {
+     Over,
+     Choose,
++    Atop,
++    Brace,
++    Brack,
+ }
+ 
+ impl InfixKind {
+@@ -130,6 +137,9 @@
+         match self {
+             Self::Over => "over",
+             Self::Choose => "choose",
++            Self::Atop => "atop",
++            Self::Brace => "brace",
++            Self::Brack => "brack",
+         }
+     }
+ 
+@@ -137,6 +147,9 @@
+         match self {
+             Self::Over => "frac",
+             Self::Choose => "binom",
++            Self::Atop => "herseatop",
++            Self::Brace => "hersebrace",
++            Self::Brack => "hersebrack",
+         }
+     }
+ }
+diff -ruN -x render -x lib.rs lr-upstream/src/parser/parse/drive.rs lr/src/parser/parse/drive.rs
+--- lr-upstream/src/parser/parse/drive.rs	2026-10-16 05:05:54
++++ lr/src/parser/parse/drive.rs	2026-10-16 06:27:16
+@@ -64,6 +64,8 @@
+     /// already counts one level, so the group's list does not (spec 5, Q2).
+     ArgOpen,
+     Wait,
++    /// herse: a braced sub-formula in a list (not an argument).
++    WaitList,
+ }
+ 
+ #[derive(Clone, Copy, PartialEq, Eq)]
+@@ -191,10 +193,12 @@
+         phase: Seq,
+     },
+     Binom {
++        style: FracStyle,
+         num: Option<Box<MathNode>>,
+         phase: Seq,
+     },
+     Genfrac {
++        style: FracStyle,
+         left: String,
+         right: String,
+         num: Option<Box<MathNode>>,
+@@ -224,6 +228,10 @@
+         kind: PhantomKind,
+         phase: One,
+     },
++    Class {
++        kind: AtomKind,
++        phase: One,
++    },
+     Paint {
+         which: Paint,
+         a: Color,
+@@ -465,13 +473,31 @@
+                 Some(Token::BeginGroup) => {}
+                 _ => return Err(ParseError::Malformed("expected '{'".into())),
+             }
+-            *phase = GroupPhase::Wait;
++            *phase = if counts { GroupPhase::WaitList } else { GroupPhase::Wait };
+             Ok(Step::Call(Kind::list(Stop::group()), counts))
+         }
+         GroupPhase::Wait => match parser.bump() {
+             Some(Token::EndGroup) => Ok(Step::Done(take_node(ready)?)),
+             _ => Err(ParseError::Malformed("unmatched '{'".into())),
+         },
++        // herse: in TeX a braced sub-formula is an Ord atom: `{=}`, `3{,}14`,
++        // `{-}1` lose their relation/punctuation/binary spacing.
++        GroupPhase::WaitList => match parser.bump() {
++            Some(Token::EndGroup) => {
++                let node = take_node(ready)?;
++                let classed = match &node {
++                    MathNode::Atom(_, k) => *k != AtomKind::Ord,
++                    MathNode::Symbol(name) => crate::symbol_atom_kind(name) != AtomKind::Ord,
++                    _ => false,
++                };
++                Ok(Step::Done(if classed {
++                    MathNode::Class(AtomKind::Ord, Box::new(node))
++                } else {
++                    node
++                }))
++            }
++            _ => Err(ParseError::Malformed("unmatched '{'".into())),
++        },
+     }
+ }
+ 
+@@ -493,8 +519,8 @@
+             *phase = ArgPhase::Wait;
+             match look {
+                 1 => Ok(Step::Call(Kind::arg_group(), false)),
+-                2 => Ok(Step::Call(Kind::paren(), false)),
+-                3 => Ok(Step::Call(Kind::nucleus(), false)),
++                // herse: TeX takes a lone `(` as the argument (`e^(x)`).
++                2 | 3 => Ok(Step::Call(Kind::nucleus(), false)),
+                 _ => Err(ParseError::Malformed("missing argument".into())),
+             }
+         }
+@@ -511,7 +537,10 @@
+     match *phase {
+         AtomPhase::Start => {
+             parser.skip_ws();
+-            if matches!(parser.peek(), Some(Token::Char('('))) && parser.script_follows_parens() {
++            // herse: TeX/MathJax attach `(x)^2`'s exponent to `)`; grouping
++            // the parens made the base an Ord (`\operatorname{f}(z)_i` got a
++            // stray thin space).
++            if false && matches!(parser.peek(), Some(Token::Char('('))) && parser.script_follows_parens() {
+                 *phase = AtomPhase::GotNucleus;
+                 Ok(Step::Call(Kind::paren(), true))
+             } else {
+@@ -564,7 +593,10 @@
+             parser.skip_ws();
+             match parser.peek().cloned() {
+                 None => Err(ParseError::Malformed("unexpected end of input".into())),
+-                Some(Token::Char('\'') | Token::Superscript | Token::Subscript) => {
++                // herse: `^\circ`, `= _2` — TeX attaches a script with no
++                // nucleus to an empty one.
++                Some(Token::Superscript | Token::Subscript) => Ok(Step::Done(MathNode::Row(Vec::new()))),
++                Some(Token::Char('\'')) => {
+                     Err(ParseError::Malformed("script has no base".into()))
+                 }
+                 Some(Token::BeginGroup) => {
+@@ -936,7 +968,7 @@
+                 )))
+             }
+         },
+-        Cmd::Binom { num, phase } => match pair(num, phase, ready)? {
++        Cmd::Binom { style, num, phase } => match pair(num, phase, ready)? {
+             Pair::Step(step) => Ok(step),
+             Pair::Both(n, k) => {
+                 if is_empty_node(&n) && is_empty_node(&k) {
+@@ -945,7 +977,7 @@
+                 Ok(Step::Done(MathNode::Delimited(
+                     Delimiter::Char('('),
+                     Box::new(MathNode::Fraction(
+-                        FracStyle::Frac,
++                        *style,
+                         Box::new(n),
+                         Box::new(k),
+                     )),
+@@ -954,6 +986,7 @@
+             }
+         },
+         Cmd::Genfrac {
++            style,
+             left,
+             right,
+             num,
+@@ -961,7 +994,7 @@
+         } => match pair(num, phase, ready)? {
+             Pair::Step(step) => Ok(step),
+             Pair::Both(n, d) => {
+-                let frac = MathNode::Fraction(FracStyle::Frac, Box::new(n), Box::new(d));
++                let frac = MathNode::Fraction(*style, Box::new(n), Box::new(d));
+                 if left.is_empty() && right.is_empty() {
+                     return Ok(Step::Done(frac));
+                 }
+@@ -1002,9 +1035,8 @@
+         Cmd::Accent { kind, phase } => match one_call(phase, ready, true, Kind::arg)? {
+             OneOut::Step(step) => Ok(step),
+             OneOut::Node(body) => {
+-                if is_empty_node(&body) {
+-                    return Err(ParseError::Malformed("empty accent base".into()));
+-                }
++                // herse: MathJax draws an accent over nothing (`\tilde{}`,
++                // `\tilde\;` as a "distributed as" sign) instead of failing.
+                 Ok(Step::Done(MathNode::Accent(Box::new(body), *kind)))
+             }
+         },
+@@ -1027,6 +1059,10 @@
+             OneOut::Step(step) => Ok(step),
+             OneOut::Node(body) => Ok(Step::Done(MathNode::Phantom(*kind, Box::new(body)))),
+         },
++        Cmd::Class { kind, phase } => match one_call(phase, ready, true, Kind::arg)? {
++            OneOut::Step(step) => Ok(step),
++            OneOut::Node(body) => Ok(Step::Done(MathNode::Class(*kind, Box::new(body)))),
++        },
+         Cmd::Paint { which, a, b, phase } => match one_call(phase, ready, true, Kind::arg)? {
+             OneOut::Step(step) => Ok(step),
+             OneOut::Node(body) => {
+@@ -1338,15 +1374,46 @@
+         }
+         "\\" | "cr" => Err(ParseError::RowBreakOutside),
+         "binom" | "dbinom" | "tbinom" => Ok(Classified::Cmd(Cmd::Binom {
++            style: match name {
++                "dbinom" => FracStyle::Datop,
++                "tbinom" => FracStyle::Tatop,
++                _ => FracStyle::Atop,
++            },
+             num: None,
+             phase: Seq::First,
+         })),
++        // herse: infix `\atop`, `\brace`, `\brack` (rewritten by group_rules).
++        "herseatop" => Ok(Classified::Cmd(Cmd::Frac {
++            style: FracStyle::Atop,
++            num: None,
++            phase: Seq::First,
++        })),
++        "hersebrace" | "hersebrack" => Ok(Classified::Cmd(Cmd::Genfrac {
++            style: FracStyle::Atop,
++            left: if name == "hersebrace" { "{".into() } else { "[".into() },
++            right: if name == "hersebrace" { "}".into() } else { "]".into() },
++            num: None,
++            phase: Seq::First,
++        })),
+         "genfrac" => {
+-            let left = parser.collect_group_text()?;
+-            let right = parser.collect_group_text()?;
+-            let _thickness = parser.collect_group_text()?;
+-            let _style = parser.collect_group_text()?;
++            // herse: group_rules already unwrapped `{[}` / `{]}` to bare tokens.
++            let left = genfrac_delim(parser)?;
++            let right = genfrac_delim(parser)?;
++            let thickness = parser.collect_group_text()?;
++            let gstyle = parser.collect_group_text()?;
++            // herse: honour a zero rule thickness and the style argument.
++            let t = thickness.trim().trim_end_matches(|c: char| c.is_ascii_alphabetic());
++            let no_rule = !thickness.trim().is_empty() && t.parse::<f64>().is_ok_and(|v| v == 0.0);
++            let style = match (gstyle.trim(), no_rule) {
++                ("0", false) => FracStyle::Dfrac,
++                ("1", false) => FracStyle::Tfrac,
++                (_, false) => FracStyle::Frac,
++                ("0", true) => FracStyle::Datop,
++                ("1", true) => FracStyle::Tatop,
++                (_, true) => FracStyle::Atop,
++            };
+             Ok(Classified::Cmd(Cmd::Genfrac {
++                style,
+                 left,
+                 right,
+                 num: None,
+@@ -1432,9 +1499,16 @@
+         "xrightarrow" => start_xarrow(parser, "longrightarrow"),
+         "xleftarrow" => start_xarrow(parser, "longleftarrow"),
+         "text" | "mbox" => Ok(Classified::Node(parser.parse_text(TextStyle::Text)?)),
+-        "operatorname" => {
+-            let op = parser.collect_group_text()?;
+-            Ok(Classified::Node(MathNode::Operator(op, false)))
++        "operatorname" | "operatornamewithlimits" => {
++            // herse: `\operatorname*` (and the old long form) move limits
++            // under the operator in display style.
++            let star = name == "operatornamewithlimits"
++                || matches!(parser.peek_ws(), Some(Token::Char('*')));
++            if star && name == "operatorname" {
++                parser.bump();
++            }
++            let op = operator_name_text(&parser.collect_operator_text()?);
++            Ok(Classified::Node(MathNode::Operator(op, star)))
+         }
+         "," => Ok(Classified::Node(MathNode::Space(SpaceKind::Thin))),
+         ":" | ">" => Ok(Classified::Node(MathNode::Space(SpaceKind::Medium))),
+@@ -1448,6 +1522,23 @@
+             let d = parse_tex_dim(&spec)?;
+             Ok(Classified::Node(MathNode::Space(SpaceKind::Hspace(d))))
+         }
++        "mathop" | "mathrel" | "mathbin" | "mathord" | "mathopen" | "mathclose" | "mathpunct"
++        | "mathinner" => {
++            let kind = match name {
++                "mathop" => AtomKind::Op,
++                "mathrel" => AtomKind::Rel,
++                "mathbin" => AtomKind::Bin,
++                "mathopen" => AtomKind::Open,
++                "mathclose" => AtomKind::Close,
++                "mathpunct" => AtomKind::Punct,
++                "mathinner" => AtomKind::Inner,
++                _ => AtomKind::Ord,
++            };
++            Ok(Classified::Cmd(Cmd::Class {
++                kind,
++                phase: One::Need,
++            }))
++        }
+         "phantom" => phantom(PhantomKind::Full),
+         "vphantom" => phantom(PhantomKind::Vertical),
+         "hphantom" => phantom(PhantomKind::Horizontal),
+@@ -1517,13 +1608,17 @@
+         ))),
+         "lim" => Ok(Classified::Node(MathNode::Limit(None))),
+         "sin" | "cos" | "tan" | "cot" | "sec" | "csc" | "arcsin" | "arccos" | "arctan" | "sinh"
+-        | "cosh" | "tanh" | "coth" | "log" | "ln" | "lg" | "exp" | "limsup" | "liminf" | "sup"
+-        | "inf" | "max" | "min" | "det" | "dim" | "ker" | "deg" | "gcd" | "lcm" | "Pr" | "arg" => {
+-            Ok(Classified::Node(MathNode::Operator(
+-                name.to_string(),
+-                false,
+-            )))
+-        }
++        | "cosh" | "tanh" | "coth" | "log" | "ln" | "lg" | "exp" | "dim" | "ker" | "deg"
++        | "lcm" | "arg" | "hom" => Ok(Classified::Node(MathNode::Operator(
++            name.to_string(),
++            false,
++        ))),
++        // herse: TeX defines these with \displaylimits.
++        "limsup" | "liminf" | "sup" | "inf" | "max" | "min" | "det" | "gcd" | "Pr"
++        | "injlim" | "projlim" => Ok(Classified::Node(MathNode::Operator(
++            name.to_string(),
++            true,
++        ))),
+         "coprod" | "bigcup" | "bigcap" | "bigsqcup" | "bigvee" | "bigwedge" | "bigoplus"
+         | "bigotimes" | "biguplus" => {
+             Ok(Classified::Node(MathNode::Operator(name.to_string(), true)))
+@@ -1532,6 +1627,15 @@
+         | "Biggl" | "Biggr" | "bigm" | "Bigm" | "biggm" | "Biggm" => {
+             Ok(Classified::Node(parser.parse_sized_delim(name)?))
+         }
++        "middle" => {
++            // herse: e-TeX \middle; layout sizes it with the enclosing \left.
++            let d = parser.parse_delimiter_pub()?;
++            Ok(Classified::Node(MathNode::SizedDelim(
++                d,
++                crate::parser::DelimSize::Middle,
++                AtomKind::Ord,
++            )))
++        }
+         "tag" => {
+             let star = matches!(parser.peek_ws(), Some(Token::Char('*')));
+             if star {
+@@ -1664,4 +1768,34 @@
+         labels: Vec::new(),
+         phase: BeginPhase::Row,
+     }))))
++}
++
++/// herse: `\operatorname{arg\,max}` — math spacing commands in an operator
++/// name become the matching Unicode spaces of the math font.
++fn operator_name_text(raw: &str) -> String {
++    let mut out = String::with_capacity(raw.len());
++    let mut it = raw.chars().peekable();
++    while let Some(c) = it.next() {
++        if c == '\\' {
++            match it.peek() {
++                Some(',') => { it.next(); out.push('\u{2006}'); continue; }
++                Some(':') | Some('>') => { it.next(); out.push('\u{205F}'); continue; }
++                Some(';') => { it.next(); out.push('\u{2005}'); continue; }
++                Some('!') => { it.next(); continue; }
++                Some(' ') => { it.next(); out.push(' '); continue; }
++                _ => {}
++            }
++        }
++        out.push(if c == '~' { ' ' } else { c });
++    }
++    out
++}
++
++/// herse: a `\genfrac` delimiter argument, braced or already unwrapped.
++fn genfrac_delim(parser: &mut super::Parser) -> Result<String, ParseError> {
++    if let Some(Token::Char(c @ ('[' | ']' | '(' | ')'))) = parser.peek_ws().cloned() {
++        parser.bump();
++        return Ok(c.to_string());
++    }
++    parser.collect_group_text()
+ }
+diff -ruN -x render -x lib.rs lr-upstream/src/parser/parse/lexicon.rs lr/src/parser/parse/lexicon.rs
+--- lr-upstream/src/parser/parse/lexicon.rs	2026-10-16 05:05:54
++++ lr/src/parser/parse/lexicon.rs	2026-10-16 05:19:59
+@@ -87,10 +87,9 @@
+ fn operator_limits(word: &str) -> Option<bool> {
+     Some(match word {
+         "sin" | "cos" | "tan" | "cot" | "sec" | "csc" | "arcsin" | "arccos" | "arctan" | "sinh"
+-        | "cosh" | "tanh" | "coth" | "log" | "ln" | "lg" | "exp" | "limsup" | "liminf" | "sup"
+-        | "inf" | "max" | "min" | "det" | "dim" | "ker" | "deg" | "gcd" | "lcm" | "Pr" | "arg" => {
+-            false
+-        }
++        | "cosh" | "tanh" | "coth" | "log" | "ln" | "lg" | "exp" | "dim" | "ker" | "deg"
++        | "lcm" | "arg" => false,
++        "limsup" | "liminf" | "sup" | "inf" | "max" | "min" | "det" | "gcd" | "Pr" => true,
+         "coprod" | "bigcup" | "bigcap" | "bigsqcup" | "bigvee" | "bigwedge" | "bigoplus"
+         | "bigotimes" | "biguplus" => true,
+         _ => return None,
+diff -ruN -x render -x lib.rs lr-upstream/src/parser/parse.rs lr/src/parser/parse.rs
+--- lr-upstream/src/parser/parse.rs	2026-10-16 05:05:54
++++ lr/src/parser/parse.rs	2026-10-16 05:58:47
+@@ -486,6 +486,10 @@
+         Ok(MathNode::SizedDelim(d, size, class))
+     }
+ 
++    pub(super) fn parse_delimiter_pub(&mut self) -> Result<Delimiter, ParseError> {
++        self.parse_delimiter()
++    }
++
+     fn parse_delimiter(&mut self) -> Result<Delimiter, ParseError> {
+         self.skip_ws();
+         match self.bump() {
+@@ -553,12 +557,22 @@
+     }
+ 
+     fn collect_group_text(&mut self) -> Result<String, ParseError> {
++        self.collect_group_text_with(false)
++    }
++
++    /// herse: like `collect_group_text`, but math spacing commands (`\,`
++    /// `\:` `\;` `\!` `\ `) become Unicode spaces, for `\operatorname`.
++    pub(super) fn collect_operator_text(&mut self) -> Result<String, ParseError> {
++        self.collect_group_text_with(true)
++    }
++
++    fn collect_group_text_with(&mut self, spacing: bool) -> Result<String, ParseError> {
+         self.skip_ws();
+         match self.bump_raw() {
+             Some(Token::Space) => {
+                 self.pos -= 1;
+                 self.skip_ws();
+-                return self.collect_group_text();
++                return self.collect_group_text_with(spacing);
+             }
+             Some(Token::BeginGroup) => {}
+             _ => return Err(ParseError::Malformed("expected '{'".into())),
+@@ -581,6 +595,15 @@
+                 Some(Token::Space) => s.push(' '),
+                 Some(Token::Char(c)) => s.push(c),
+                 Some(Token::Command(n)) => {
++                    if spacing && n.len() == 1 {
++                        match n.as_str() {
++                            "," => { s.push('\u{2006}'); continue; }
++                            ":" | ">" => { s.push('\u{205F}'); continue; }
++                            ";" => { s.push('\u{2005}'); continue; }
++                            "!" => continue,
++                            _ => {}
++                        }
++                    }
+                     if n.len() == 1 {
+                         let c = n.chars().next().unwrap_or('\\');
+                         if c.is_whitespace() {
+@@ -945,8 +968,14 @@
+             };
+             let mut kept = Vec::new();
+             for it in items {
++                // herse: drop only what peeling consumed (`\tag`, `\label`,
++                // `\nonumber`); explicit spacing (`\quad &`) and `{}` stay.
++                let meta = matches!(
++                    it,
++                    MathNode::NoNumber | MathNode::Tag { .. } | MathNode::Label(_)
++                );
+                 let peeled = peel_row_meta(it, number, labels);
+-                if !is_empty_node(&peeled) {
++                if !meta && !is_vacant(&peeled) {
+                     kept.push(peeled);
+                 }
+             }
+@@ -972,6 +1001,15 @@
+     }
+ }
+ 
++/// herse: a row emptied by peeling (nested `\label`s), not a user `{}`.
++fn is_vacant(n: &MathNode) -> bool {
++    match n {
++        MathNode::Row(v) => !v.is_empty() && v.iter().all(|c| matches!(c, MathNode::Row(w) if w.is_empty()) || is_vacant(c)),
++        MathNode::NoNumber | MathNode::Label(_) => true,
++        _ => false,
++    }
++}
++
+ fn is_empty_node(n: &MathNode) -> bool {
+     match n {
+         MathNode::Row(v) => v.is_empty() || v.iter().all(is_empty_node),
+@@ -1355,7 +1393,10 @@
+         '=' | '<' | '>' | '≠' | '≤' | '≥' | '≈' | '≡' => AtomKind::Rel,
+         '(' | '[' | '{' => AtomKind::Open,
+         ')' | ']' | '}' => AtomKind::Close,
+-        ',' | ';' | '!' | '?' | ':' => AtomKind::Punct,
++        // herse: TeX mathcodes — `:` is a relation, `!` / `?` close.
++        ':' => AtomKind::Rel,
++        '!' | '?' => AtomKind::Close,
++        ',' | ';' => AtomKind::Punct,
+         _ => AtomKind::Ord,
+     }
+ }
+@@ -1448,6 +1489,21 @@
+     }
+     let num = Dim::parse(&s[..i]);
+     let unit = s[i..].trim();
++    // herse: TeX's other units, converted to pt (exact rationals).
++    let (num, unit) = match unit {
++        "in" => (num * Dim::ratio(7227, 100), "pt"),
++        "cm" => (num * Dim::ratio(7227, 254), "pt"),
++        "mm" => (num * Dim::ratio(7227, 2540), "pt"),
++        "pc" => (num * Dim::from_i64(12), "pt"),
++        "dd" => (num * Dim::ratio(1238, 1157), "pt"),
++        "cc" => (num * Dim::ratio(14856, 1157), "pt"),
++        "sp" => (num / Dim::from_i64(65536), "pt"),
++        // MathJax: 1px = 1/96 in.
++        "px" => (num * Dim::ratio(7227, 9600), "pt"),
++        // STIX Two Math x-height is about 0.45 em.
++        "ex" => (num * Dim::ratio(45, 100), "em"),
++        other => (num, other),
++    };
+     // `Dim::in_em` is the one definition of the units (em, mu, pt, bp).
+     let dim = num
+         .in_em(unit)

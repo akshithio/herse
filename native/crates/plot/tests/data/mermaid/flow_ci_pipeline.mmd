@@ -1,0 +1,19 @@
+---
+title: CI pipeline
+---
+flowchart LR
+    push([git push]) --> lint
+    subgraph build [Build]
+        lint[Lint] --> unit[Unit tests]
+        lint --> types[Type check]
+        unit --> bundle[[Bundle]]
+        types --> bundle
+    end
+    subgraph test [Integration]
+        direction TB
+        e2e[E2E suite] --> perf[Perf budget]
+    end
+    bundle --> e2e
+    perf --> gate{Approved?}
+    gate -->|yes| deploy[(Deploy to prod)]
+    gate -.->|no| notify>Notify team]

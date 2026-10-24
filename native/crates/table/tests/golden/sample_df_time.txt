@@ -1,0 +1,10 @@
+flavor=Pandas columns=4 index_columns=1 standalone=true header_rows=1 body_rows=3 dropped=0
+caption=None
+footer=None
+dtypes=None
+widths=[1, 15, 25, 3]
+ellipsis_rows=[] ellipsis_cols=[]
+H0: <_"" H I | <t"td" H | <t"dt" H | <t"cat" H
+B0: <n"0" H I | <t"0 days 01:00:00" | <t"2024-01-01 00:00:00+00:00" | <t"a"
+B1: <n"1" H I | <t"0 days 02:00:00" | <t"2024-01-02 00:00:00+00:00" | <t"b"
+B2: <n"2" H I | <z"NaT" | <t"2024-01-03 00:00:00+00:00" | <z"NaN"

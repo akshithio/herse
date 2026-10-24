@@ -1,0 +1,6 @@
+graph BT
+    plan[Plan] --> build[Build]
+    build --> measure[Measure]
+    measure --> learn[Learn]
+    learn --> plan
+    learn ---> pivot{Pivot?}

@@ -1,0 +1,23 @@
+[package]
+name = "herse-plot"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Plotly figures, Vega-Lite (Altair) charts and Mermaid diagrams from notebooks -> static SVG"
+
+[dependencies]
+serde_json.workspace = true
+
+[dev-dependencies]
+# The gallery example rasterizes SVG -> PNG; same resvg as gpui.
+resvg = "0.46"
+# Thread CPU time in examples/gallery.rs (wall time is noisy on a busy machine).
+libc = "0.2"
+
+[[example]]
+name = "gallery"
+path = "examples/gallery.rs"
+
+[[example]]
+name = "mermaid"
+path = "examples/mermaid.rs"

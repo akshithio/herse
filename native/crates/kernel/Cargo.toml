@@ -1,0 +1,24 @@
+[package]
+name = "herse-kernel"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-channel = "2"
+event-listener = "5"
+hmac = "0.12"
+log.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+smol.workspace = true
+uuid = { version = "1", features = ["v4"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[[example]]
+name = "repl"
+path = "examples/repl.rs"

@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Info.plist template for Herse.app. bundle.sh fills in the version placeholder
+  below with the version of the `herse` crate and writes the result to
+  Contents/Info.plist.
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+
+	<key>CFBundleName</key>
+	<string>Herse</string>
+	<key>CFBundleDisplayName</key>
+	<string>Herse</string>
+	<key>CFBundleIdentifier</key>
+	<string>dev.herse.app</string>
+	<key>CFBundleExecutable</key>
+	<string>herse</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@VERSION@</string>
+	<key>CFBundleVersion</key>
+	<string>@VERSION@</string>
+
+	<key>LSMinimumSystemVersion</key>
+	<string>12.0</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.developer-tools</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSSupportsAutomaticGraphicsSwitching</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © Herse. MIT License.</string>
+
+	<!-- Shown in the one-time macOS file-access prompts (notebooks and the
+	     folders opened as workspaces live in these places). -->
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Herse opens notebooks and folders you choose from your Desktop.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Herse opens notebooks and folders you choose from your Documents folder.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Herse opens notebooks and folders you choose from your Downloads folder.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>Herse opens notebooks and folders you choose on removable volumes.</string>
+
+	<!-- Live sessions: guests and the host talk over the local network (or a
+	     Tailscale tailnet); macOS asks before that the first time. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Herse connects to the people you share a live notebook with, on your network or tailnet.</string>
+
+	<!-- herse://join/… links open the Join sheet. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>Herse live session</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>herse</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Finder "Open With" and Dock-icon drops. Rank Alternate: Herse shows up
+	     in the Open With menu but never becomes the default for .ipynb or for
+	     folders on its own. -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Jupyter Notebook</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>org.jupyter.ipynb</string>
+			</array>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>ipynb</string>
+			</array>
+		</dict>
+		<!-- Data files open as a table (see crates/data): Open With › Herse. -->
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Data</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.comma-separated-values-text</string>
+				<string>public.tab-separated-values-text</string>
+				<string>public.json</string>
+				<string>org.openxmlformats.spreadsheetml.sheet</string>
+				<string>com.microsoft.excel.xls</string>
+				<string>org.oasis-open.opendocument.spreadsheet</string>
+			</array>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>csv</string>
+				<string>tsv</string>
+				<string>parquet</string>
+				<string>feather</string>
+				<string>arrow</string>
+				<string>json</string>
+				<string>jsonl</string>
+				<string>ndjson</string>
+				<string>xlsx</string>
+				<string>xls</string>
+				<string>ods</string>
+				<string>sqlite</string>
+				<string>sqlite3</string>
+				<string>db</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Folder</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.folder</string>
+			</array>
+			<key>CFBundleTypeOSTypes</key>
+			<array>
+				<string>fold</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- .ipynb has no system-provided UTI. Import the de-facto one used by the
+	     Jupyter ecosystem so Launch Services can match files to the entry above. -->
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.jupyter.ipynb</string>
+			<key>UTTypeDescription</key>
+			<string>Jupyter Notebook</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.json</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>ipynb</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/x-ipynb+json</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+</dict>
+</plist>

@@ -1,0 +1,15 @@
+graph TD
+    start((Start)) --> works{Does it work?}
+    works -- Yes --> keep[Don't touch it]
+    works -- No --> touched{Did you touch it?}
+    touched -- Yes --> idiot[You fool!]
+    touched -- No --> hide{Will anyone know?}
+    idiot --> blame{Can you blame<br/>someone else?}
+    blame -- Yes --> fine([No problem])
+    blame -- No --> doomed[/You're doomed\]
+    hide -- Yes --> trash[(Hide it)]
+    hide -- No --> doomed
+    doomed --> retry[Try again]
+    retry --> works
+    keep --> fine
+    trash --> fine
