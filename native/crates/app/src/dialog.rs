@@ -159,7 +159,7 @@ impl Render for Dialog {
                     .gap(px(12.))
                     .when_some(self.icon, |d, icon| {
                         d.child(match icon {
-                            Icon::Mark => crate::ui::mark(px(36.), cx).into_any_element(),
+                            Icon::Mark => crate::ui::mark(px(36.)).into_any_element(),
                             Icon::Svg(path) => div()
                                 .size(px(28.))
                                 .flex_none()

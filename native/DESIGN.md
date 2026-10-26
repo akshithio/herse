@@ -5,8 +5,10 @@ prose in a reading serif, code in a quiet block, figures on the page.
 Everything mechanical (counts, run buttons, folds, selection) lives in the
 margin, and one colour, dew, marks where you are and what is live.
 
-Herse is the goddess of dew; the mark is a notebook cell's brackets holding a
-drop of it.
+The logo is a pale grey swash on Herse blue (`#EEEEEE` on `#0682FE`, or the
+reverse); the originals are in `brand/`. The app icon is the blue tile, and
+inside the app the swash appears alone, in that blue in both themes. The
+blue is the brand's: inside the app, dew stays the one accent.
 
 ## Principles
 

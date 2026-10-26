@@ -123,16 +123,13 @@ pub fn ghost_button(id: impl Into<ElementId>, label: impl Into<SharedString>, cx
         .child(label.into())
 }
 
-/// Herse's mark: a notebook cell's brackets in ink holding a drop of dew
-/// (Herse is the goddess of dew), in the accent.
-pub fn mark(size: gpui_kit::Pixels, cx: &App) -> Div {
-    let theme = cx.theme();
-    div()
-        .relative()
-        .size(size)
-        .flex_none()
-        .child(svg().absolute().inset_0().size(size).path("icons/herse-brackets.svg").text_color(theme.foreground))
-        .child(svg().absolute().inset_0().size(size).path("icons/herse-drop.svg").text_color(crate::theme::accent(cx)))
+/// The logo's blue (`brand/herse-logo.svg`). It's the brand's colour, kept
+/// in both themes; inside the app, dew stays the one accent.
+pub const LOGO_BLUE: u32 = 0x0682FE;
+
+/// Herse's mark: the logo's swash, in the logo's blue.
+pub fn mark(size: gpui_kit::Pixels) -> Div {
+    div().size(size).flex_none().child(svg().size(size).path("icons/herse-mark.svg").text_color(gpui_kit::rgb(LOGO_BLUE)))
 }
 
 /// A failure the reader has to see and may want to copy (a kernel that died,

@@ -2252,7 +2252,7 @@ impl Workspace {
             .items_center()
             .justify_center()
             .text_size(px(13.))
-            .child(crate::ui::mark(px(48.), cx).mb(px(14.)))
+            .child(crate::ui::mark(px(48.)).mb(px(14.)))
             // The wordmark is set in the prose face, like a title page.
             .child(
                 div()

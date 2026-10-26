@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Generate the Herse app icon (AppIcon.icns) with no external assets.
 
-Design: macOS Big Sur grid. A 1024px canvas holding an 824px rounded square
-(185px corner radius) with a soft drop shadow. The tile is warm paper; on it,
-Herse's mark (the same drawing as the app's `icons/herse-*.svg`): a notebook
-cell's brackets in ink holding a drop of dew in the accent teal. Herse is the
-goddess of dew; the brackets are Jupyter's cell prompt.
+Design: Herse's logo (`native/brand/herse-logo.svg`), a pale grey swash on
+blue, set on the macOS Big Sur grid: a 1024px canvas holding an 824px
+rounded square (185px corner radius) with a soft drop shadow. The swash is
+centred on the tile, 60% of its height, as in the logo.
 
 Usage:
     python3 make_icon.py                 # writes AppIcon.icns + AppIcon-1024.png here
@@ -17,7 +16,6 @@ Needs Pillow (PIL) and, for the .icns step, macOS `iconutil`.
 from __future__ import annotations
 
 import argparse
-import math
 import shutil
 import subprocess
 import sys
@@ -32,16 +30,22 @@ BODY_INSET = (CANVAS - BODY) // 2
 RADIUS = 185
 SS = 4                          # supersampling factor for anti-aliasing
 
-# Herse's palette (DESIGN.md): paper, ink, dew.
-BG_TOP = (252, 251, 248)
-BG_BOTTOM = (236, 233, 227)
-INK = (28, 26, 23)
-DEW_TOP = (22, 154, 146)
-DEW_BOTTOM = (8, 104, 99)
+# The logo's colours (brand/herse-logo.svg).
+BLUE = (6, 130, 254)            # #0682FE
+GREY = (238, 238, 238)          # #EEEEEE
 
+# How tall the swash stands on the tile.
+MARK = 0.60
 
-def lerp(a: tuple[int, ...], b: tuple[int, ...], t: float) -> tuple[int, ...]:
-    return tuple(round(x + (y - x) * t) for x, y in zip(a, b))
+# The logo's one path, as cubic segments (start, c1, c2, end):
+# M65.5 52 C65.5 61.3888 57.8888 69 48.5 69 C39.1112 69 45.5 51 34 53
+# C46.5 50.8261 39.1112 35 48.5 35 C30 78 65.5 42.6112 65.5 52 Z
+SWASH = [
+    ((65.5, 52), (65.5, 61.3888), (57.8888, 69), (48.5, 69)),
+    ((48.5, 69), (39.1112, 69), (45.5, 51), (34, 53)),
+    ((34, 53), (46.5, 50.8261), (39.1112, 35), (48.5, 35)),
+    ((48.5, 35), (30, 78), (65.5, 42.6112), (65.5, 52)),
+]
 
 
 def body_mask() -> Image.Image:
@@ -56,15 +60,7 @@ def body_mask() -> Image.Image:
     return big.resize((CANVAS, CANVAS), Image.LANCZOS)
 
 
-def gradient(top, bottom, y0, y1) -> Image.Image:
-    col = Image.new("RGB", (1, CANVAS))
-    for y in range(CANVAS):
-        t = min(max((y - y0) / (y1 - y0), 0.0), 1.0)
-        col.putpixel((0, y), lerp(top, bottom, t))
-    return col.resize((CANVAS, CANVAS), Image.NEAREST)
-
-
-def cubic(p0, p1, p2, p3, n=48):
+def cubic(p0, p1, p2, p3, n=200):
     for i in range(n + 1):
         t = i / n
         u = 1 - t
@@ -72,52 +68,23 @@ def cubic(p0, p1, p2, p3, n=48):
                u**3 * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t**3 * p3[1])
 
 
-def drop_points():
-    """The drop of `herse-drop.svg` in its 24-unit grid."""
-    pts = list(cubic((12, 7.2), (12, 7.2), (8.7, 11), (8.7, 13.5)))
-    # The bottom: a half circle of radius 3.3 about (12, 13.5).
-    for i in range(1, 64):
-        a = math.pi - math.pi * i / 64
-        pts.append((12 + 3.3 * math.cos(a), 13.5 + 3.3 * math.sin(a)))
-    pts += list(cubic((15.3, 13.5), (15.3, 11), (12, 7.2), (12, 7.2)))
-    return pts
-
-
-def mark_layers(stroke_units: float):
-    """(brackets mask, drop mask) at CANVAS size, the mark centred on the tile."""
+def swash_mask() -> Image.Image:
+    """The logo's swash at CANVAS size: MARK of the body's height, centred."""
     s = SS
-    unit = 30.0                  # px per grid unit: the brackets span 17 units, ~62% of the body
-    ox = CANVAS / 2 - 12 * unit
-    oy = CANVAS / 2 - 12 * unit
-
-    def at(x, y):
-        return ((ox + x * unit) * s, (oy + y * unit) * s)
-
-    brackets = Image.new("L", (CANVAS * s, CANVAS * s), 0)
-    d = ImageDraw.Draw(brackets)
-    w = stroke_units * unit * s
-    for path in ([(8, 3.5), (4.5, 3.5), (4.5, 20.5), (8, 20.5)],
-                 [(16, 3.5), (19.5, 3.5), (19.5, 20.5), (16, 20.5)]):
-        pts = [at(*p) for p in path]
-        d.line(pts, fill=255, width=round(w), joint="curve")
-        for x, y in (pts[0], pts[-1]):         # round caps
-            d.ellipse([x - w / 2, y - w / 2, x + w / 2, y + w / 2], fill=255)
-
-    drop = Image.new("L", (CANVAS * s, CANVAS * s), 0)
-    ImageDraw.Draw(drop).polygon([at(*p) for p in drop_points()], fill=255)
-    shine = Image.new("L", (CANVAS * s, CANVAS * s), 0)
-    cx, cy = at(10.9, 13.1)
-    rx, ry = 0.75 * unit * s, 1.05 * unit * s
-    ImageDraw.Draw(shine).ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=255)
-    shine = ImageChops.multiply(shine.rotate(-25, center=(cx, cy)), drop)
-
-    def down(m):
-        return m.resize((CANVAS, CANVAS), Image.LANCZOS)
-
-    return down(brackets), down(drop), down(shine)
+    pts = []
+    for seg in SWASH:
+        pts += list(cubic(*seg))[1 if pts else 0:]
+    xs, ys = [x for x, _ in pts], [y for _, y in pts]
+    unit = MARK * BODY / (max(ys) - min(ys))
+    mid_x, mid_y = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+    big = Image.new("L", (CANVAS * s, CANVAS * s), 0)
+    ImageDraw.Draw(big).polygon(
+        [((CANVAS / 2 + (x - mid_x) * unit) * s, (CANVAS / 2 + (y - mid_y) * unit) * s) for x, y in pts], fill=255
+    )
+    return big.resize((CANVAS, CANVAS), Image.LANCZOS)
 
 
-def render(stroke: float = 1.6) -> Image.Image:
+def render() -> Image.Image:
     """The full 1024x1024 icon (RGBA)."""
     mask = body_mask()
 
@@ -127,19 +94,8 @@ def render(stroke: float = 1.6) -> Image.Image:
     out = Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 0))
     out.paste(Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 255)), (0, 0), shadow_alpha)
 
-    body = gradient(BG_TOP, BG_BOTTOM, BODY_INSET, BODY_INSET + BODY).convert("RGBA")
-    # A faint rim so the paper tile holds its edge on a light Dock.
-    rim = ImageChops.subtract(mask, mask.filter(ImageFilter.MinFilter(5))).point(lambda v: int(v * 0.10))
-    body.paste(Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 255)), (0, 0), rim)
-
-    brackets, drop, shine = mark_layers(stroke)
-    body.paste(Image.new("RGBA", (CANVAS, CANVAS), INK + (255,)), (0, 0), brackets)
-    # The drop: a soft contact shadow, a top-lit gradient, a highlight.
-    d_shadow = ImageChops.offset(drop.filter(ImageFilter.GaussianBlur(8)).point(lambda v: int(v * 0.28)), 0, 6)
-    body.paste(Image.new("RGBA", (CANVAS, CANVAS), (0, 40, 38, 255)), (0, 0), d_shadow)
-    dew = gradient(DEW_TOP, DEW_BOTTOM, CANVAS / 2 - 5 * 30, CANVAS / 2 + 5 * 30).convert("RGBA")
-    body.paste(dew, (0, 0), drop)
-    body.paste(Image.new("RGBA", (CANVAS, CANVAS), (255, 255, 255, 255)), (0, 0), shine.point(lambda v: int(v * 0.42)))
+    body = Image.new("RGBA", (CANVAS, CANVAS), BLUE + (255,))
+    body.paste(Image.new("RGBA", (CANVAS, CANVAS), GREY + (255,)), (0, 0), swash_mask())
 
     out.paste(body, (0, 0), mask)
     return out
@@ -168,9 +124,7 @@ def main() -> int:
     out_dir: Path = args.out
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    master = render(stroke=1.6)
-    # Tiny sizes get bolder strokes so the mark survives at 16-64px.
-    small = render(stroke=2.3)
+    master = render()
 
     png_1024 = out_dir / "AppIcon-1024.png"
     master.save(png_1024, optimize=True)
@@ -179,8 +133,7 @@ def main() -> int:
         iconset = Path(tmp) / "AppIcon.iconset"
         iconset.mkdir()
         for name, px in ICONSET:
-            src = master if px >= 128 else small
-            img = src if px == CANVAS else src.resize((px, px), Image.LANCZOS)
+            img = master if px == CANVAS else master.resize((px, px), Image.LANCZOS)
             img.save(iconset / name)
         if args.keep_iconset:
             keep = out_dir / "AppIcon.iconset"

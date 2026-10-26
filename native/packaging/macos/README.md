@@ -6,7 +6,7 @@ Turns the `herse` binary into a normal, double-clickable macOS application.
 | -------------- | -------------------------------------------------------------------------- |
 | `bundle.sh`    | Builds the release binary and assembles, signs and (optionally) zips the app |
 | `Info.plist`   | Bundle metadata template (`@VERSION@` is filled in from the crate)          |
-| `make_icon.py` | Generates the icon with Pillow, no external assets                          |
+| `make_icon.py` | Draws the icon (the logo in `native/brand/`) with Pillow                    |
 | `AppIcon.icns` | Generated icon, checked in so a build needs neither Python nor Pillow       |
 | `AppIcon-1024.png` | The 1024 px master, for reference                                       |
 
